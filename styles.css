@@ -1,0 +1,38 @@
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #fafafa;
+}
+
+.spot-card.active {
+    border-color: #6366f1;
+    background-color: #f8fafc;
+    transform: translateY(-4px);
+}
+
+.spot-card.active .check-icon {
+    display: flex;
+}
+
+.check-icon {
+    display: none;
+}
+
+.glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.category-pill.active {
+    background-color: #6366f1;
+    color: white;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
