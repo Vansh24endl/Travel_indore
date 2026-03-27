@@ -1,7 +1,7 @@
 
   # Custom UI Design
 
-  This is a code bundle for Custom UI Design. The original project is available at https://www.figma.com/design/dDxCDUZrIMjpkFMTmgRjtN/Custom-UI-Design.
+Develop in Figma
 
   ## Running the code
 
