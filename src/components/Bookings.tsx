@@ -1,221 +1,143 @@
-import { Link } from 'react-router';
-import { Calendar, MapPin, Users, ArrowRight, Clock, CheckCircle, XCircle } from 'lucide-react';
+import React from 'react'
+import { Link } from 'react-router'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import api from '@/services/api'
+import { motion } from 'framer-motion'
+import { Compass, Calendar, Users, MapPin, XCircle, ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
+import Card from './ui/Card'
+import Loader from './ui/Loader'
+import EmptyState from './ui/EmptyState'
+import Button from './ui/Button'
 
 export function Bookings() {
-  const bookings = [
-    {
-      id: 'BK001',
-      destination: 'Rajwada Palace Heritage Tour',
-      image: 'https://images.unsplash.com/photo-1721572321875-2610e9e83d55?w=400',
-      date: 'March 30, 2026',
-      time: '10:00 AM',
-      guests: 2,
-      price: 700,
-      status: 'confirmed',
-      bookingDate: 'March 25, 2026'
-    },
-    {
-      id: 'BK002',
-      destination: 'Chappan Dukan Food Tour',
-      image: 'https://images.unsplash.com/photo-1772460759097-ad68b3232a4f?w=400',
-      date: 'April 5, 2026',
-      time: '6:00 PM',
-      guests: 4,
-      price: 720,
-      status: 'confirmed',
-      bookingDate: 'March 26, 2026'
-    },
-    {
-      id: 'BK003',
-      destination: 'Lotus Valley Nature Walk',
-      image: 'https://images.unsplash.com/photo-1770615540460-3c47b7a1b10d?w=400',
-      date: 'March 15, 2026',
-      time: '8:00 AM',
-      guests: 2,
-      price: 500,
-      status: 'completed',
-      bookingDate: 'March 10, 2026'
-    },
-    {
-      id: 'BK004',
-      destination: 'Khajrana Temple Visit',
-      image: 'https://images.unsplash.com/photo-1698153210197-5a1027c6c5e8?w=400',
-      date: 'March 20, 2026',
-      time: '7:00 AM',
-      guests: 3,
-      price: 0,
-      status: 'completed',
-      bookingDate: 'March 18, 2026'
-    },
-  ];
+    const queryClient = useQueryClient()
 
-  const upcomingBookings = bookings.filter(b => b.status === 'confirmed');
-  const pastBookings = bookings.filter(b => b.status === 'completed');
+    // Fetch user bookings
+    const { data: bookings = [], isLoading } = useQuery({
+        queryKey: ['myBookingsList'],
+        queryFn: async () => {
+            const res = await api.get('/api/bookings/my')
+            return res.data.bookings || []
+        }
+    })
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-green-100 text-green-700';
-      case 'completed':
-        return 'bg-gray-100 text-gray-700';
-      case 'cancelled':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
+    // Cancel booking mutation
+    const cancelMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await api.post(`/api/bookings/${id}/cancel`)
+            return res.data
+        },
+        onSuccess: () => {
+            toast.success('Booking cancelled successfully')
+            queryClient.invalidateQueries({ queryKey: ['myBookingsList'] })
+        },
+        onError: () => {
+            toast.error('Failed to cancel booking')
+        }
+    })
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader size="lg" />
+            </div>
+        )
     }
-  };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'completed':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'cancelled':
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return null;
-    }
-  };
+    return (
+        <div className="space-y-8 font-sans pb-16">
+            <div>
+                <h2 className="text-3xl font-black text-gray-900 dark:text-white">My Travel Bookings</h2>
+                <p className="text-gray-550 dark:text-gray-400 text-sm">Manage your upcoming destinations tickets and receipts</p>
+            </div>
 
-  return (
-    <div className="p-4 lg:p-8 pb-24 lg:pb-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl text-gray-900 mb-2">My Bookings</h1>
-        <p className="text-gray-600">Manage your upcoming and past trips</p>
-      </div>
+            {bookings.length === 0 ? (
+                <EmptyState
+                    title="No bookings yet"
+                    description="You don't have any bookings active. Start exploring the heritage and culture of Indore now!"
+                    action={
+                        <Link
+                            to="/explore"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition-all"
+                        >
+                            <span>Find Places to Visit</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    }
+                />
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {bookings.map((booking: any) => (
+                        <Card key={booking.id} className="flex flex-col justify-between h-full relative overflow-hidden border border-gray-200/50 dark:border-gray-800">
+                            {/* Status strip top corner */}
+                            <div className="absolute top-0 right-0 w-24 h-6 text-center text-[10px] font-bold uppercase tracking-wider leading-6 flex items-center justify-center rounded-bl-xl text-white bg-indigo-600">
+                                Ticket Ref
+                            </div>
 
-      {/* Upcoming Bookings */}
-      <div className="mb-12">
-        <h2 className="text-2xl text-gray-900 mb-6">Upcoming Trips</h2>
-        {upcomingBookings.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
-            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600 mb-4">No upcoming bookings</p>
-            <Link
-              to="/explore"
-              className="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition-all"
-            >
-              Explore Destinations
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-6">
-            {upcomingBookings.map((booking) => (
-              <div
-                key={booking.id}
-                className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 group"
-              >
-                <div className="relative h-48">
-                  <img
-                    src={booking.image}
-                    alt={booking.destination}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent group-hover:from-black/70 transition-all duration-300" />
-                  <div className="absolute top-4 right-4 transform transition-all duration-300 group-hover:scale-110">
-                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
-                      {getStatusIcon(booking.status)}
-                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-4 left-4">
-                    <p className="text-white text-sm">Booking #{booking.id}</p>
-                  </div>
+                            <div className="space-y-4">
+                                <div className="flex gap-4 items-start">
+                                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-150 flex-shrink-0">
+                                        {booking.destination?.images?.[0] ? (
+                                            <img src={booking.destination.images[0]} alt={booking.destination.title} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-gray-200"><Compass className="text-gray-400" /></div>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-extrabold text-lg text-gray-900 dark:text-white">{booking.destination?.title || 'Unknown Destination'}</h4>
+                                        <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-xs mt-1">
+                                            <MapPin className="w-3.5 h-3.5 text-indigo-500" />
+                                            <span>{booking.destination?.location || 'Indore'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 border-t border-b border-gray-100 dark:border-gray-800 py-3 text-sm">
+                                    <div className="flex items-center gap-2 text-gray-650 dark:text-gray-300">
+                                        <Calendar className="w-4 h-4 text-indigo-500" />
+                                        <span>{booking.bookingDate}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-gray-650 dark:text-gray-300">
+                                        <Users className="w-4 h-4 text-indigo-500" />
+                                        <span>{booking.numberOfPersons} Travelers</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-6 flex items-center justify-between gap-4">
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">Total Paid</span>
+                                    <span className="font-black text-xl text-indigo-650 dark:text-indigo-400">₹{booking.totalAmount}</span>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <span className={`px-3 py-1.5 text-xs font-bold rounded-xl uppercase tracking-wider ${
+                                        booking.bookingStatus === 'confirmed'
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : booking.bookingStatus === 'cancelled'
+                                            ? 'bg-rose-100 text-rose-800'
+                                            : 'bg-amber-100 text-amber-800'
+                                    }`}>
+                                        {booking.bookingStatus}
+                                    </span>
+
+                                    {booking.bookingStatus === 'confirmed' && (
+                                        <button
+                                            onClick={() => cancelMutation.mutate(booking.id)}
+                                            className="p-2 border border-rose-200 hover:border-transparent text-rose-500 hover:bg-rose-55 rounded-xl transition-all"
+                                            title="Cancel Ticket"
+                                        >
+                                            <XCircle className="w-5 h-5" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </Card>
+                    ))}
                 </div>
-
-                <div className="p-6">
-                  <h3 className="text-xl text-gray-900 mb-4 group-hover:text-indigo-600 transition-colors duration-300">{booking.destination}</h3>
-                  
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <Calendar className="w-5 h-5" />
-                      <span>{booking.date} at {booking.time}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <Users className="w-5 h-5" />
-                      <span>{booking.guests} {booking.guests === 1 ? 'Guest' : 'Guests'}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-600">
-                      <span className="font-medium text-gray-900">Total:</span>
-                      <span className="text-lg font-medium text-gray-900">
-                        {booking.price === 0 ? 'Free' : `₹${booking.price}`}
-                      </span>
-                    </div>
-                  </div>
-
-                  <Link
-                    to={`/booking/${booking.id}`}
-                    className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 group/btn"
-                  >
-                    View Details
-                    <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Past Bookings */}
-      <div>
-        <h2 className="text-2xl text-gray-900 mb-6">Past Trips</h2>
-        <div className="space-y-4">
-          {pastBookings.map((booking) => (
-            <Link
-              key={booking.id}
-              to={`/booking/${booking.id}`}
-              className="block bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all"
-            >
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="w-full sm:w-32 h-32 rounded-xl overflow-hidden flex-shrink-0">
-                  <img
-                    src={booking.image}
-                    alt={booking.destination}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="text-lg text-gray-900 mb-1">{booking.destination}</h3>
-                      <p className="text-sm text-gray-500">Booking #{booking.id}</p>
-                    </div>
-                    <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
-                      {getStatusIcon(booking.status)}
-                      {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>{booking.date}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      <span>{booking.guests} {booking.guests === 1 ? 'Guest' : 'Guests'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">
-                        {booking.price === 0 ? 'Free' : `₹${booking.price}`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center">
-                  <ArrowRight className="w-5 h-5 text-gray-400" />
-                </div>
-              </div>
-            </Link>
-          ))}
+            )}
         </div>
-      </div>
-    </div>
-  );
+    )
 }
+export default Bookings

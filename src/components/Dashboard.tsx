@@ -1,200 +1,211 @@
-import { Link } from 'react-router';
-import { TrendingUp, MapPin, Calendar, ArrowRight, Clock, Users } from 'lucide-react';
+import React from 'react'
+import { Link } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
+import api from '@/services/api'
+import { useAuth } from '@/hooks/useAuth'
+import { motion } from 'framer-motion'
+import { Calendar, Compass, Star, DollarSign, ArrowRight } from 'lucide-react'
+import Card from './ui/Card'
+import Loader from './ui/Loader'
 
 export function Dashboard() {
-  const upcomingBooking = {
-    id: 'BK001',
-    destination: 'Rajwada Palace Heritage Tour',
-    date: 'March 30, 2026',
-    time: '10:00 AM',
-    guests: 2,
-    status: 'confirmed'
-  };
+    const { user } = useAuth()
 
-  const recentDestinations = [
-    { id: 1, name: 'Rajwada Palace', rating: 4.8, image: 'https://images.unsplash.com/photo-1721572321875-2610e9e83d55?w=400' },
-    { id: 2, name: 'Chappan Dukan', rating: 4.6, image: 'https://images.unsplash.com/photo-1772460759097-ad68b3232a4f?w=400' },
-    { id: 3, name: 'Khajrana Ganesh', rating: 4.9, image: 'https://images.unsplash.com/photo-1698153210197-5a1027c6c5e8?w=400' },
-  ];
+    // Fetch user bookings
+    const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
+        queryKey: ['myBookings'],
+        queryFn: async () => {
+            const res = await api.get('/api/bookings/my')
+            return res.data.bookings || []
+        }
+    })
 
-  const quickStats = [
-    { label: 'Total Bookings', value: '12', icon: Calendar, color: 'indigo' },
-    { label: 'Places Visited', value: '8', icon: MapPin, color: 'purple' },
-    { label: 'Hours Traveled', value: '24', icon: Clock, color: 'pink' },
-    { label: 'Travel Points', value: '850', icon: TrendingUp, color: 'amber' },
-  ];
+    // Fetch all destinations to recommend the highest rated one
+    const { data: destinationsData, isLoading: destinationsLoading } = useQuery({
+        queryKey: ['destinations'],
+        queryFn: async () => {
+            const res = await api.get('/api/destinations')
+            return res.data.destinations || []
+        }
+    })
 
-  return (
-    <div className="p-4 lg:p-8 pb-24 lg:pb-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl text-gray-900 mb-2">Welcome back, John!</h1>
-        <p className="text-gray-600">Here's your travel overview</p>
-      </div>
+    const isLoading = bookingsLoading || destinationsLoading
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {quickStats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group"
-            >
-              <div className={`w-12 h-12 bg-${stat.color}-100 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                <Icon className={`w-6 h-6 text-${stat.color}-600`} />
-              </div>
-              <p className="text-2xl text-gray-900 mb-1 group-hover:text-indigo-600 transition-colors duration-300">{stat.value}</p>
-              <p className="text-sm text-gray-600">{stat.label}</p>
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader size="lg" />
             </div>
-          );
-        })}
-      </div>
+        )
+    }
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Upcoming Booking */}
-        <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl text-gray-900">Upcoming Trip</h2>
-            <Link to="/bookings" className="text-indigo-600 text-sm flex items-center gap-1 hover:text-indigo-700">
-              View All
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-          
-          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl p-6 lg:p-8 text-white">
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <div className="inline-flex px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm mb-3">
-                  Booking #{upcomingBooking.id}
+    const bookings = bookingsData || []
+    const destinations = destinationsData || []
+
+    // Calculate total amount spent on bookings
+    const totalSpent = bookings
+        .filter((b: any) => b.bookingStatus === 'confirmed')
+        .reduce((sum: number, b: any) => sum + b.totalAmount, 0)
+
+    // Find the highest rated destination to suggest
+    const topRecommended = destinations.length > 0 
+        ? [...destinations].sort((a: any, b: any) => b.rating - a.rating)[0]
+        : null
+
+    return (
+        <div className="space-y-8 font-sans pb-12">
+            {/* Hero Banner */}
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 to-indigo-800 p-8 text-white shadow-xl"
+            >
+                <div className="relative z-10 max-w-xl space-y-4">
+                    <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-3 py-1 rounded-full">
+                        Welcome Back
+                    </span>
+                    <h2 className="text-3xl lg:text-4xl font-extrabold">
+                        Hello, {user?.fullname || 'Explorer'}!
+                    </h2>
+                    <p className="text-indigo-100 text-sm leading-relaxed">
+                        Ready to discover new places in Indore? View your upcoming tickets, check the latest reviews, or plan a new trip using our AI assistant!
+                    </p>
+                    <div className="pt-2">
+                        <Link
+                            to="/explore"
+                            className="inline-flex items-center gap-2 bg-white text-indigo-700 font-bold px-6 py-3 rounded-xl hover:bg-indigo-50 transition-all duration-300 shadow-md hover:scale-105"
+                        >
+                            <span>Explore Places</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
                 </div>
-                <h3 className="text-2xl mb-2">{upcomingBooking.destination}</h3>
-                <p className="text-indigo-100">Experience the royal heritage</p>
-              </div>
-              <div className="px-4 py-2 bg-green-500 rounded-lg text-sm font-medium">
-                Confirmed
-              </div>
+                {/* Decorative Shapes */}
+                <div className="absolute right-0 top-0 w-64 h-64 bg-white/5 rounded-full blur-2xl transform translate-x-12 -translate-y-12" />
+                <div className="absolute right-12 bottom-0 w-48 h-48 bg-indigo-500/20 rounded-full blur-xl" />
+            </motion.div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card hoverable={false} className="flex items-center gap-5">
+                    <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 rounded-2xl">
+                        <Calendar className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Total Bookings</p>
+                        <h4 className="text-2xl font-black text-gray-900 dark:text-white">{bookings.length}</h4>
+                    </div>
+                </Card>
+
+                <Card hoverable={false} className="flex items-center gap-5">
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl">
+                        <DollarSign className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Spent Amount</p>
+                        <h4 className="text-2xl font-black text-gray-900 dark:text-white">₹{totalSpent}</h4>
+                    </div>
+                </Card>
+
+                <Card hoverable={false} className="flex items-center gap-5">
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-2xl">
+                        <Star className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Explore Spots</p>
+                        <h4 className="text-2xl font-black text-gray-900 dark:text-white">{destinations.length}</h4>
+                    </div>
+                </Card>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <Calendar className="w-5 h-5 text-indigo-200 mb-2" />
-                <p className="text-sm text-indigo-200">Date & Time</p>
-                <p className="font-medium">{upcomingBooking.date}</p>
-                <p className="text-sm">{upcomingBooking.time}</p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <Users className="w-5 h-5 text-indigo-200 mb-2" />
-                <p className="text-sm text-indigo-200">Guests</p>
-                <p className="font-medium">{upcomingBooking.guests} People</p>
-              </div>
+            <div className="grid lg:grid-cols-3 gap-8">
+                {/* Bookings List */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">My Recent Bookings</h3>
+                        <Link to="/bookings" className="text-sm text-indigo-650 hover:underline font-semibold">
+                            View All
+                        </Link>
+                    </div>
+
+                    {bookings.length === 0 ? (
+                        <Card hoverable={false} className="text-center py-8">
+                            <p className="text-gray-500 dark:text-gray-400 mb-4">You have not booked any tours yet.</p>
+                            <Link to="/explore" className="text-indigo-600 font-bold hover:underline">
+                                Book your first destination
+                            </Link>
+                        </Card>
+                    ) : (
+                        <div className="space-y-4">
+                            {bookings.slice(0, 3).map((booking: any) => (
+                                <Card key={booking.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                                            {booking.destination?.images?.[0] ? (
+                                                <img src={booking.destination.images[0]} alt={booking.destination.title} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-gray-200"><Compass className="text-gray-400" /></div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 dark:text-white">{booking.destination?.title || 'Unknown Spot'}</h4>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">{booking.bookingDate} • {booking.numberOfPersons} Travelers</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
+                                        <span className="font-bold text-indigo-650">₹{booking.totalAmount}</span>
+                                        <span className={`px-3 py-1 text-xs rounded-full font-semibold uppercase tracking-wider ${
+                                            booking.bookingStatus === 'confirmed'
+                                                ? 'bg-emerald-100 text-emerald-800'
+                                                : booking.bookingStatus === 'cancelled'
+                                                ? 'bg-rose-100 text-rose-800'
+                                                : 'bg-amber-100 text-amber-800'
+                                        }`}>
+                                            {booking.bookingStatus}
+                                        </span>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Recommendation Side Card */}
+                <div className="space-y-6">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Top Recommended</h3>
+                    {topRecommended ? (
+                        <Card hoverable className="overflow-hidden p-0 group">
+                            <div className="h-48 overflow-hidden relative">
+                                <img
+                                    src={topRecommended.images[0]}
+                                    alt={topRecommended.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
+                                <div className="absolute top-4 right-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 text-amber-550 font-bold text-sm">
+                                    <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                                    <span>{topRecommended.rating}</span>
+                                </div>
+                            </div>
+                            <div className="p-6 space-y-3">
+                                <h4 className="text-lg font-bold text-gray-900 dark:text-white">{topRecommended.title}</h4>
+                                <p className="text-sm text-gray-550 dark:text-gray-400 line-clamp-2">{topRecommended.description}</p>
+                                <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">{topRecommended.location}</span>
+                                    <Link to={`/destination/${topRecommended._id || topRecommended.id}`} className="text-indigo-650 hover:underline font-bold text-sm flex items-center gap-1">
+                                        <span>View details</span>
+                                        <ArrowRight className="w-3.5 h-3.5" />
+                                    </Link>
+                                </div>
+                            </div>
+                        </Card>
+                    ) : (
+                        <Card hoverable={false} className="text-center py-12">
+                            <p className="text-gray-500">No destinations available</p>
+                        </Card>
+                    )}
+                </div>
             </div>
-
-            <div className="flex gap-3">
-              <Link
-                to={`/booking/${upcomingBooking.id}`}
-                className="flex-1 bg-white text-indigo-600 py-3 rounded-xl text-center font-medium hover:bg-gray-50 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95"
-              >
-                View Details
-              </Link>
-              <button className="flex-1 bg-white/20 backdrop-blur-sm text-white py-3 rounded-xl font-medium hover:bg-white/30 transition-all duration-300 hover:scale-105 active:scale-95">
-                Get Directions
-              </button>
-            </div>
-          </div>
         </div>
-
-        {/* Quick Actions */}
-        <div>
-          <h2 className="text-xl text-gray-900 mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            <Link
-              to="/explore"
-              className="block bg-white border border-gray-200 rounded-2xl p-4 hover:shadow-xl hover:border-indigo-200 transition-all duration-300 hover:-translate-y-1 group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center group-hover:bg-indigo-600 transition-all duration-300 group-hover:scale-110">
-                  <MapPin className="w-6 h-6 text-indigo-600 group-hover:text-white transition-colors duration-300" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">Explore Places</p>
-                  <p className="text-sm text-gray-600">Discover new destinations</p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all duration-300" />
-              </div>
-            </Link>
-
-            <Link
-              to="/bookings"
-              className="block bg-white border border-gray-200 rounded-2xl p-4 hover:shadow-xl hover:border-purple-200 transition-all duration-300 hover:-translate-y-1 group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-600 transition-all duration-300 group-hover:scale-110">
-                  <Calendar className="w-6 h-6 text-purple-600 group-hover:text-white transition-colors duration-300" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">My Bookings</p>
-                  <p className="text-sm text-gray-600">View all trips</p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all duration-300" />
-              </div>
-            </Link>
-
-            <Link
-              to="/profile"
-              className="block bg-white border border-gray-200 rounded-2xl p-4 hover:shadow-xl hover:border-pink-200 transition-all duration-300 hover:-translate-y-1 group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center group-hover:bg-pink-600 transition-all duration-300 group-hover:scale-110">
-                  <Users className="w-6 h-6 text-pink-600 group-hover:text-white transition-colors duration-300" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">My Profile</p>
-                  <p className="text-sm text-gray-600">Account settings</p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-pink-600 group-hover:translate-x-1 transition-all duration-300" />
-              </div>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Popular Destinations */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl text-gray-900">Popular Destinations</h2>
-          <Link to="/explore" className="text-indigo-600 text-sm flex items-center gap-1 hover:text-indigo-700">
-            View All
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-        
-        <div className="grid md:grid-cols-3 gap-6">
-          {recentDestinations.map((dest) => (
-            <Link
-              key={dest.id}
-              to={`/destination/${dest.id}`}
-              className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all group"
-            >
-              <div className="aspect-video relative overflow-hidden">
-                <img
-                  src={dest.image}
-                  alt={dest.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute bottom-3 left-3 right-3">
-                  <p className="text-white font-medium">{dest.name}</p>
-                  <div className="flex items-center gap-1 text-white text-sm">
-                    <span>⭐</span>
-                    <span>{dest.rating}</span>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+    )
 }
+export default Dashboard

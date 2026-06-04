@@ -1,269 +1,317 @@
-import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Calendar, MapPin, Users, Clock, Download, Phone, Mail, CheckCircle, Navigation as NavigationIcon } from 'lucide-react';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import React from 'react'
+import { useParams, Link } from 'react-router'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import api from '@/services/api'
+import { 
+    Compass, 
+    ArrowLeft, 
+    Printer, 
+    Calendar, 
+    Users, 
+    MapPin, 
+    XCircle,
+    CheckCircle2
+} from 'lucide-react'
+import { toast } from 'sonner'
+import Card from './ui/Card'
+import Loader from './ui/Loader'
+import Button from './ui/Button'
+
+// Self-contained dynamic SVG QR Code Component
+function QRCode({ value }: { value: string }) {
+    const size = 17 // 17x17 grid
+    
+    // Hash function to seed the grid
+    let hash = 0
+    for (let i = 0; i < value.length; i++) {
+        hash = value.charCodeAt(i) + ((hash << 5) - hash)
+    }
+
+    const getBit = (row: number, col: number) => {
+        const isAnchor = 
+            (row < 6 && col < 6) || // Top-left
+            (row < 6 && col >= size - 6) || // Top-right
+            (row >= size - 6 && col < 6) // Bottom-left
+            
+        if (isAnchor) return false
+
+        const seed = Math.abs(hash + (row * 31) + (col * 17))
+        return (seed % 3) === 0
+    }
+
+    return (
+        <svg className="w-20 h-20 bg-white p-1 rounded-xl shadow-sm border border-gray-200" viewBox="0 0 100 100">
+            {/* Top-Left Anchor */}
+            <rect x="5" y="5" width="30" height="30" fill="#0f172a" />
+            <rect x="10" y="10" width="20" height="20" fill="white" />
+            <rect x="15" y="15" width="10" height="10" fill="#0f172a" />
+
+            {/* Top-Right Anchor */}
+            <rect x="65" y="5" width="30" height="30" fill="#0f172a" />
+            <rect x="70" y="10" width="20" height="20" fill="white" />
+            <rect x="75" y="15" width="10" height="10" fill="#0f172a" />
+
+            {/* Bottom-Left Anchor */}
+            <rect x="5" y="65" width="30" height="30" fill="#0f172a" />
+            <rect x="10" y="70" width="20" height="20" fill="white" />
+            <rect x="15" y="75" width="10" height="10" fill="#0f172a" />
+
+            {/* Bottom-Right helper anchor */}
+            <rect x="75" y="75" width="10" height="10" fill="#0f172a" />
+            <rect x="77" y="77" width="6" height="6" fill="white" />
+            <rect x="79" y="79" width="2" height="2" fill="#0f172a" />
+
+            {/* Grid cells */}
+            {Array.from({ length: size }).map((_, r) => {
+                return Array.from({ length: size }).map((_, c) => {
+                    const isAnchor = 
+                        (r < 6 && c < 6) || 
+                        (r < 6 && c >= size - 6) || 
+                        (r >= size - 6 && c < 6) ||
+                        (r >= size - 4 && c >= size - 4)
+                        
+                    if (isAnchor) return null
+
+                    if (getBit(r, c)) {
+                        const cellSize = 90 / size
+                        const x = 5 + c * cellSize
+                        const y = 5 + r * cellSize
+                        return (
+                            <rect 
+                                key={`${r}-${c}`}
+                                x={x}
+                                y={y}
+                                width={cellSize + 0.4}
+                                height={cellSize + 0.4}
+                                fill="#0f172a"
+                            />
+                        )
+                    }
+                    return null
+                })
+            })}
+        </svg>
+    )
+}
 
 export function BookingDetail() {
-  const { id } = useParams();
-  const navigate = useNavigate();
+    const { id } = useParams()
+    const queryClient = useQueryClient()
 
-  // Mock booking data
-  const booking = {
-    id: id,
-    destination: 'Rajwada Palace Heritage Tour',
-    description: 'Explore the historic royal palace with a professional guide',
-    image: 'https://images.unsplash.com/photo-1721572321875-2610e9e83d55?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxJbmRpYW4lMjBwYWxhY2UlMjBhcmNoaXRlY3R1cmUlMjBoZXJpdGFnZXxlbnwxfHx8fDE3NzQ2MTg0MDR8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    date: 'March 30, 2026',
-    time: '10:00 AM',
-    duration: '2 hours',
-    guests: 2,
-    price: 350,
-    totalPrice: 700,
-    status: 'confirmed',
-    bookingDate: 'March 25, 2026',
-    confirmationCode: id?.toUpperCase() || 'BK001',
-    location: {
-      address: 'Rajwada, Indore, MP 452002',
-      coordinates: { lat: 22.7196, lng: 75.8577 }
-    },
-    guide: {
-      name: 'Rajesh Kumar',
-      phone: '+91 98765 43210',
-      email: 'rajesh@indoreexplorer.com',
-      photo: null
-    },
-    includes: [
-      'Entry tickets to palace',
-      'Professional guide service',
-      'Historical insights and stories',
-      'Photo opportunities',
-      'Complimentary refreshments'
-    ],
-    meetingPoint: 'Main entrance of Rajwada Palace',
-    instructions: [
-      'Please arrive 15 minutes before scheduled time',
-      'Wear comfortable walking shoes',
-      'Photography allowed in designated areas',
-      'Modest dress code required'
-    ]
-  };
+    // Fetch booking details
+    const { data: booking, isLoading } = useQuery({
+        queryKey: ['bookingDetail', id],
+        queryFn: async () => {
+            const res = await api.get(`/api/bookings/${id}`)
+            return res.data.booking
+        }
+    })
 
-  return (
-    <div className="pb-24 lg:pb-8">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-indigo-600 to-purple-600 text-white">
-        <div className="max-w-7xl mx-auto p-4 lg:p-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-white mb-6 hover:text-indigo-100 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Back to Bookings</span>
-          </button>
+    // Cancel booking mutation
+    const cancelMutation = useMutation({
+        mutationFn: async () => {
+            const res = await api.post(`/api/bookings/${id}/cancel`)
+            return res.data
+        },
+        onSuccess: () => {
+            toast.success('Booking cancelled successfully')
+            queryClient.invalidateQueries({ queryKey: ['bookingDetail', id] })
+        },
+        onError: () => {
+            toast.error('Failed to cancel booking')
+        }
+    })
 
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-indigo-200 text-sm mb-1">BOOKING CONFIRMATION</p>
-              <h1 className="text-3xl mb-2">#{booking.confirmationCode}</h1>
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader size="lg" />
             </div>
-            <div className="px-4 py-2 bg-green-500 rounded-xl font-medium flex items-center gap-2">
-              <CheckCircle className="w-5 h-5" />
-              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+        )
+    }
+
+    if (!booking) {
+        return (
+            <div className="text-center py-12">
+                <h3 className="text-xl font-bold">Booking not found</h3>
+                <Link to="/bookings" className="text-indigo-650 hover:underline mt-4 inline-block">Back to bookings</Link>
             </div>
-          </div>
+        )
+    }
 
-          <p className="text-indigo-100">Booked on {booking.bookingDate}</p>
-        </div>
-      </div>
+    const printTicket = () => {
+        window.print()
+    }
 
-      <div className="max-w-7xl mx-auto p-4 lg:p-8">
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Destination Info */}
-            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-              <div className="relative h-64">
-                <ImageWithFallback
-                  src={booking.image}
-                  alt={booking.destination}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute bottom-6 left-6">
-                  <h2 className="text-2xl text-white mb-1">{booking.destination}</h2>
-                  <p className="text-white/90">{booking.description}</p>
-                </div>
-              </div>
+    const ticketIdStr = booking.id || booking._id || ''
+    const shortTicketId = ticketIdStr.length > 8 ? ticketIdStr.substring(ticketIdStr.length - 8).toUpperCase() : ticketIdStr
 
-              <div className="p-6">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Calendar className="w-5 h-5 text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Date & Time</p>
-                      <p className="font-medium text-gray-900">{booking.date}</p>
-                      <p className="text-sm text-gray-600">{booking.time}</p>
-                    </div>
-                  </div>
+    return (
+        <div className="max-w-2xl mx-auto space-y-8 font-sans pb-16 relative">
+            {/* Custom Print CSS */}
+            <style dangerouslySetInnerHTML={{ __html: `
+                @media print {
+                    body {
+                        background: white !important;
+                        color: black !important;
+                    }
+                    .print\\:hidden {
+                        display: none !important;
+                    }
+                    .print-card-wrapper {
+                        border: 2px solid #e2e8f0 !important;
+                        box-shadow: none !important;
+                        background: white !important;
+                        color: black !important;
+                        padding: 2rem !important;
+                        margin: 0 !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                    }
+                    .print-notches {
+                        display: none !important;
+                    }
+                }
+            `}} />
 
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Clock className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Duration</p>
-                      <p className="font-medium text-gray-900">{booking.duration}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Users className="w-5 h-5 text-pink-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Guests</p>
-                      <p className="font-medium text-gray-900">{booking.guests} {booking.guests === 1 ? 'Person' : 'People'}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <MapPin className="w-5 h-5 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Meeting Point</p>
-                      <p className="font-medium text-gray-900">{booking.meetingPoint}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* What's Included */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6">
-              <h3 className="text-xl text-gray-900 mb-4">What's Included</h3>
-              <div className="space-y-3">
-                {booking.includes.map((item, index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-gray-700">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Important Instructions */}
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-              <h3 className="text-xl text-gray-900 mb-4">Important Instructions</h3>
-              <ul className="space-y-2">
-                {booking.instructions.map((instruction, index) => (
-                  <li key={index} className="flex items-start gap-3 text-gray-700">
-                    <span className="text-amber-600 flex-shrink-0">•</span>
-                    <span>{instruction}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Location */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6">
-              <h3 className="text-xl text-gray-900 mb-4">Location</h3>
-              <div className="flex items-start gap-3 mb-4">
-                <MapPin className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                <p className="text-gray-700">{booking.location.address}</p>
-              </div>
-              <button className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium">
-                <NavigationIcon className="w-5 h-5" />
-                Get Directions
-              </button>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Guide Info */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6">
-              <h3 className="text-lg text-gray-900 mb-4">Your Guide</h3>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white">
-                  {booking.guide.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{booking.guide.name}</p>
-                  <p className="text-sm text-gray-600">Tour Guide</p>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <a
-                  href={`tel:${booking.guide.phone}`}
-                  className="flex items-center gap-3 text-gray-700 hover:text-indigo-600 transition-colors"
+            {/* Top Navigation Row */}
+            <div className="flex justify-between items-center print:hidden">
+                <Link to="/bookings" className="inline-flex items-center gap-2 text-sm font-bold text-gray-550 hover:text-indigo-650 dark:text-gray-400">
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back to Bookings</span>
+                </Link>
+                <button
+                    onClick={printTicket}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-xl font-bold text-xs hover:bg-gray-50 dark:hover:bg-gray-750 dark:text-white transition-all shadow-sm cursor-pointer"
                 >
-                  <Phone className="w-5 h-5" />
-                  <span className="text-sm">{booking.guide.phone}</span>
-                </a>
-                <a
-                  href={`mailto:${booking.guide.email}`}
-                  className="flex items-center gap-3 text-gray-700 hover:text-indigo-600 transition-colors"
-                >
-                  <Mail className="w-5 h-5" />
-                  <span className="text-sm">{booking.guide.email}</span>
-                </a>
-              </div>
-            </div>
-
-            {/* Payment Summary */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6">
-              <h3 className="text-lg text-gray-900 mb-4">Payment Summary</h3>
-              
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-gray-600">
-                  <span>₹{booking.price} × {booking.guests} guests</span>
-                  <span>₹{booking.totalPrice}</span>
-                </div>
-                <div className="border-t border-gray-200 pt-3">
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-900">Total Paid</span>
-                    <span className="font-medium text-gray-900">₹{booking.totalPrice}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-                ✓ Payment completed
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="space-y-3">
-              <button className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 transition-all duration-300 hover:shadow-lg hover:scale-105 active:scale-95 group">
-                <Download className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-                Download Ticket
-              </button>
-              
-              <button className="w-full border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-medium hover:border-gray-400 transition-all duration-300 hover:shadow-md hover:scale-105 active:scale-95">
-                Contact Support
-              </button>
-
-              {booking.status === 'confirmed' && (
-                <button className="w-full border-2 border-red-300 text-red-600 py-3 rounded-xl font-medium hover:border-red-400 transition-all duration-300 hover:bg-red-50 hover:scale-105 active:scale-95">
-                  Cancel Booking
+                    <Printer className="w-4 h-4" />
+                    <span>Print Ticket</span>
                 </button>
-              )}
             </div>
 
-            {/* Cancellation Policy */}
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Cancellation Policy</h3>
-              <p className="text-sm text-gray-600">
-                Free cancellation up to 24 hours before the scheduled time. 
-                After that, 50% refund available up to 12 hours before.
-              </p>
+            {/* Ticket Card */}
+            <div className="print-card-wrapper bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden text-slate-800 dark:text-slate-200">
+                {/* Visual Stamp */}
+                <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full border-4 border-indigo-600/5 flex items-center justify-center select-none rotate-12 pointer-events-none">
+                    <span className="text-indigo-600/5 dark:text-indigo-400/5 font-black text-lg tracking-widest uppercase">Verified Ticket</span>
+                </div>
+
+                <div className="space-y-6">
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-gray-150 dark:border-gray-800">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                                <Compass className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-lg text-gray-900 dark:text-white">Smart Indore Tour Ticket</h3>
+                                <p className="text-xs text-gray-450 dark:text-gray-400">Ticket Reference: #{shortTicketId}</p>
+                            </div>
+                        </div>
+                        <span className={`px-3.5 py-1.5 text-xs font-bold rounded-xl uppercase tracking-wider ${
+                            booking.bookingStatus === 'confirmed'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                : booking.bookingStatus === 'cancelled'
+                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-450'
+                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-450'
+                        }`}>
+                            {booking.bookingStatus}
+                        </span>
+                    </div>
+
+                    {/* Destination Details */}
+                    <div className="flex flex-col sm:flex-row gap-6 pb-6 border-b border-gray-150 dark:border-gray-800">
+                        <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+                            {booking.destination?.images?.[0] ? (
+                                <img src={booking.destination.images[0]} alt={booking.destination.title} className="w-full h-full object-cover animate-fade-in" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400"><Compass className="text-gray-405" /></div>
+                            )}
+                        </div>
+                        <div className="space-y-1.5 flex-1">
+                            <h4 className="font-extrabold text-xl text-gray-900 dark:text-white">{booking.destination?.title || 'Attraction Tour'}</h4>
+                            <p className="text-xs text-gray-550 dark:text-gray-405 leading-relaxed line-clamp-2">{booking.destination?.description || 'Explore the iconic landscapes and heritage of Indore.'}</p>
+                            <div className="flex items-center gap-1.5 text-gray-450 dark:text-gray-400 text-xs pt-1">
+                                <MapPin className="w-4 h-4 text-indigo-500" />
+                                <span>{booking.destination?.location || 'Indore, MP, India'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Specifications Grid */}
+                    <div className="grid grid-cols-2 gap-6 py-2">
+                        <div className="space-y-1">
+                            <span className="text-[10px] text-gray-450 dark:text-gray-400 font-bold uppercase tracking-wider">Scheduled Tour Date</span>
+                            <div className="flex items-center gap-2 text-gray-850 dark:text-gray-250 font-bold text-sm">
+                                <Calendar className="w-4 h-4 text-indigo-500" />
+                                <span>{booking.bookingDate}</span>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <span className="text-[10px] text-gray-450 dark:text-gray-400 font-bold uppercase tracking-wider">Total Travelers</span>
+                            <div className="flex items-center gap-2 text-gray-850 dark:text-gray-250 font-bold text-sm">
+                                <Users className="w-4 h-4 text-indigo-500" />
+                                <span>{booking.numberOfPersons} Passenger(s)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Receipt Cost details */}
+                    <div className="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
+                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-450">
+                            <span>Base entry fee</span>
+                            <span>₹{booking.destination?.ticketPrice || 0} per person</span>
+                        </div>
+                        <div className="flex justify-between font-black text-lg text-gray-900 dark:text-white border-t border-gray-200/50 dark:border-gray-700/50 pt-2.5">
+                            <span>Total Ticket Price</span>
+                            <span>₹{booking.totalAmount}</span>
+                        </div>
+                    </div>
+
+                    {/* Premium Ticket tear-off line separator with side notches */}
+                    <div className="relative my-8 print-notches">
+                        <div className="absolute left-[-45px] -top-3 w-6 h-6 rounded-full bg-slate-900 border border-slate-900 dark:bg-slate-900" />
+                        <div className="absolute right-[-45px] -top-3 w-6 h-6 rounded-full bg-slate-900 border border-slate-900 dark:bg-slate-900" />
+                        <div className="border-t-2 border-dashed border-gray-200 dark:border-gray-700" />
+                    </div>
+
+                    {/* QR Code and Instructions Block */}
+                    <div className="pt-2 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
+                        <div className="space-y-2 max-w-sm">
+                            <div className="flex items-center justify-center md:justify-start gap-1.5 text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span className="text-xs font-bold uppercase tracking-wider">Valid Ticket & Entry Pass</span>
+                            </div>
+                            <h5 className="font-bold text-sm text-gray-900 dark:text-white">Important Instructions</h5>
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                                Present this digital pass with QR Code at the ticket entry counter. Valid only for the date specified above. Follow eco-tourism clean guidelines.
+                            </p>
+                        </div>
+                        
+                        {/* Dynamic QR Code Render */}
+                        <div className="flex flex-col items-center gap-1">
+                            <QRCode value={ticketIdStr} />
+                            <span className="text-[9px] font-mono text-gray-400 uppercase tracking-widest">{shortTicketId}</span>
+                        </div>
+                    </div>
+
+                    {/* Booking Cancellation Trigger */}
+                    {booking.bookingStatus === 'confirmed' && (
+                        <div className="pt-6 border-t border-gray-150 dark:border-gray-800 print:hidden">
+                            <Button
+                                onClick={() => cancelMutation.mutate()}
+                                variant="outline"
+                                className="w-full text-rose-500 border-rose-200 dark:border-rose-800 hover:border-transparent hover:bg-rose-55 rounded-2xl font-bold transition-all duration-300"
+                                isLoading={cancelMutation.isPending}
+                            >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                <span>Cancel Travel Ticket</span>
+                            </Button>
+                        </div>
+                    )}
+                </div>
             </div>
-          </div>
         </div>
-      </div>
-    </div>
-  );
+    )
 }
+export default BookingDetail
