@@ -89,6 +89,7 @@ export async function getUserById(userId: string) {
         profileImage: user.profileImage,
         role: user.role,
         isActive: user.isActive,
+        savedDestinations: user.savedDestinations ? user.savedDestinations.map(id => id.toString()) : [],
         createdAt: user.createdAt
     }
 }

@@ -3,12 +3,79 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Send, Bot, User, Compass, HelpCircle } from 'lucide-react'
 import Card from './ui/Card'
 import Button from './ui/Button'
+import api from '@/services/api'
+
+interface Place {
+    name: string
+    rating: number
+    location: string
+    mapUrl: string
+}
 
 interface Message {
     id: number
     sender: 'bot' | 'user'
     text: string
     isItinerary?: boolean
+    places?: Place[]
+}
+
+function formatMessageText(text: string) {
+    const lines = text.split('\n')
+    return lines.map((line, lineIdx) => {
+        let cleanLine = line.trim()
+        
+        if (cleanLine.startsWith('###')) {
+            const headingText = cleanLine.replace(/^###\s*/, '')
+            return (
+                <span key={lineIdx} className="block font-extrabold text-base text-indigo-700 dark:text-indigo-400 mb-3 mt-1">
+                    {headingText}
+                </span>
+            )
+        }
+        
+        let isBullet = false
+        if (cleanLine.startsWith('*')) {
+            isBullet = true
+            cleanLine = cleanLine.replace(/^\*\s*/, '')
+        }
+        
+        const parts: React.ReactNode[] = []
+        let index = 0
+        const regex = /\*\*(.*?)\*\*/g
+        let match
+        
+        while ((match = regex.exec(cleanLine)) !== null) {
+            if (match.index > index) {
+                parts.push(cleanLine.substring(index, match.index))
+            }
+            parts.push(
+                <strong key={match.index} className="font-extrabold text-gray-950 dark:text-white">
+                    {match[1]}
+                </strong>
+            )
+            index = regex.lastIndex
+        }
+        
+        if (index < cleanLine.length) {
+            parts.push(cleanLine.substring(index))
+        }
+
+        if (isBullet) {
+            return (
+                <span key={lineIdx} className="flex items-start gap-2 mb-2 pl-1">
+                    <span className="text-indigo-500 mt-1 flex-shrink-0">•</span>
+                    <span className="text-gray-750 dark:text-gray-300 text-sm leading-relaxed">{parts}</span>
+                </span>
+            )
+        }
+
+        return (
+            <span key={lineIdx} className="block text-gray-750 dark:text-gray-300 text-sm leading-relaxed mb-2">
+                {parts}
+            </span>
+        )
+    })
 }
 
 export function AIAssistant() {
@@ -22,7 +89,7 @@ export function AIAssistant() {
     const [inputText, setInputText] = useState('')
     const [isTyping, setIsTyping] = useState(false)
 
-    const handleSend = (textToSend: string) => {
+    const handleSend = async (textToSend: string) => {
         if (!textToSend.trim()) return
 
         const userMsg: Message = {
@@ -34,57 +101,30 @@ export function AIAssistant() {
         setInputText('')
         setIsTyping(true)
 
-        // Generate response based on keywords
-        setTimeout(() => {
-            let reply = ''
-            const query = textToSend.toLowerCase()
-
-            if (query.includes('heritage') || query.includes('1-day') || query.includes('history') || query.includes('palace')) {
-                reply = `### 🏛️ One-Day Heritage Itinerary:
-* **09:30 AM**: Start at **Lal Bagh Palace** (explore the grand European architecture).
-* **12:00 PM**: Head to **Rajwada Palace** (the heart of the Holkar dynasty).
-* **02:00 PM**: Enjoy lunch at **Chappan Dukan** (Indori Poha & Egg Banjo).
-* **04:00 PM**: Visit the beautiful **Krishnapura Chhatris** near Kahn River.
-* **06:00 PM**: Relax at **Kanch Mandir** (Exquisite temple made entirely of glass).`
-            } else if (query.includes('food') || query.includes('eat') || query.includes('chappan') || query.includes('sarafa')) {
-                reply = `### 😋 Indori Food Trail Itinerary:
-* **Breakfast**: **Prashant Post-Office Poha** or **Head-Saab Ke Poha** (served with double Sev, Jalebi, and Usal).
-* **Afternoon**: **Chappan Dukan** (Famous for Johnny Hot Dog, Vijay Chaat House\'s Khopra Patties, and Madhuram\'s Shahi Shrikhand).
-* **Night (09:00 PM - 01:00 AM)**: **Sarafa Night Bazaar** (A jewelry market that transforms into a massive street food paradise. Must try: **Dahi Vada** at Joshi\'s, **Garadu**, **Bhutte Ka Kees**, and giant **Mawa Jalebi**).`
-            } else if (query.includes('budget') || query.includes('cost') || query.includes('cheap')) {
-                reply = `### 💰 Budget Planner:
-* **Backpacker Budget**: ₹800 - ₹1200 / day
-  * Stay: Hostels or local homestays (₹500).
-  * Food: Poha & street food stalls (₹300).
-  * Travel: Public buses, e-rickshaws, or i-Bus (₹100).
-  * Entry Fees: Most temples and parks are free. Palaces cost around ₹20 - ₹50.
-* **Comfort Travel Budget**: ₹2500 - ₹4000 / day
-  * Stay: 3-Star hotels (₹2000).
-  * Food: Full-service restaurants and cafes (₹1000).
-  * Travel: Ride-sharing cabs or auto rentals (₹600).`
-            } else if (query.includes('temple') || query.includes('spiritual') || query.includes('ganesh') || query.includes('ujjain')) {
-                reply = `### 🛕 Spiritual & Temple Walkthrough:
-* **Morning**: Visit **Khajrana Ganesh Temple** (offering prayers to the massive Ganesha idol).
-* **Late Morning**: Walk through **Bada Ganpati** (housing the world\'s largest Ganesha idol, standing 25 feet tall).
-* **Afternoon**: Visit **Bijasen Tekri** (perched on a hill, offers beautiful panoramic views of the city).
-* **Pro Tip**: If you have a weekend, take a 1-hour bus or train to Ujjain (55km away) to visit the holy **Mahakaleshwar Jyotirlinga Temple**.`
+        try {
+            const res = await api.post('/api/ai/chat', { message: textToSend })
+            if (res.data && res.data.ok) {
+                const botMsg: Message = {
+                    id: Date.now() + 1,
+                    sender: 'bot',
+                    text: res.data.message,
+                    places: res.data.places,
+                    isItinerary: res.data.extracted?.intent === 'itinerary'
+                }
+                setMessages(prev => [...prev, botMsg])
             } else {
-                reply = `I can help you with specific details about Indore! Try selecting one of the travel templates below, or ask me about:
-* **"heritage"** to get a historical monument walkthrough.
-* **"food"** to get a guide to Chappan & Sarafa street food.
-* **"budget"** to plan your daily travel expenses.
-* **"temple"** to get a spiritual journey planner.`
+                throw new Error('Invalid response')
             }
-
+        } catch (error) {
             const botMsg: Message = {
                 id: Date.now() + 1,
                 sender: 'bot',
-                text: reply,
-                isItinerary: reply.startsWith('###')
+                text: 'Sorry, I encountered an issue connecting to the AI travel service. Please check your network or try again later.'
             }
             setMessages(prev => [...prev, botMsg])
+        } finally {
             setIsTyping(false)
-        }, 1200)
+        }
     }
 
     return (
@@ -156,14 +196,44 @@ export function AIAssistant() {
                                         </div>
                                     )}
 
-                                    <div className={`p-4 rounded-2xl max-w-[85%] text-sm leading-relaxed whitespace-pre-line ${
+                                    <div className={`p-4 rounded-2xl max-w-[85%] text-sm leading-relaxed ${
                                         msg.sender === 'user'
-                                            ? 'bg-indigo-600 text-white rounded-tr-none'
+                                            ? 'bg-indigo-600 text-white rounded-tr-none whitespace-pre-line'
                                             : msg.isItinerary
                                             ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-900/50 text-gray-800 dark:text-gray-200 rounded-tl-none font-medium'
                                             : 'bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-250 rounded-tl-none'
                                     }`}>
-                                        {msg.text}
+                                        {formatMessageText(msg.text)}
+
+                                        {/* Rich Cards Section */}
+                                        {msg.places && msg.places.length > 0 && (
+                                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-200/50 dark:border-gray-700/50 pt-4">
+                                                {msg.places.map((place, idx) => (
+                                                    <div 
+                                                        key={idx} 
+                                                        className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
+                                                    >
+                                                        <div>
+                                                            <div className="flex justify-between items-start gap-2">
+                                                                <h5 className="font-extrabold text-xs text-gray-900 dark:text-white line-clamp-1">{place.name}</h5>
+                                                                <span className="flex items-center gap-0.5 text-amber-500 text-[10px] font-bold bg-amber-50 dark:bg-amber-950/45 px-1.5 py-0.5 rounded-md">
+                                                                    ★ {place.rating}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[10px] text-gray-550 dark:text-gray-400 mt-1 line-clamp-2">{place.location}</p>
+                                                        </div>
+                                                        <a 
+                                                            href={place.mapUrl} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer" 
+                                                            className="mt-3 block text-center bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-extrabold text-[10px] py-1.5 rounded-lg border border-indigo-100/40 transition-colors"
+                                                        >
+                                                            Open in Google Maps
+                                                        </a>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {msg.sender === 'user' && (

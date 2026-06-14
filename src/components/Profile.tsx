@@ -83,6 +83,7 @@ export function Profile() {
         onSuccess: () => {
             toast.success('Removed from saved places')
             queryClient.invalidateQueries({ queryKey: ['favoritesList'] })
+            queryClient.invalidateQueries({ queryKey: ['profile'] })
         },
         onError: () => {
             toast.error('Failed to remove bookmark')

@@ -69,10 +69,24 @@ export function DestinationDetail() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['profile'] })
+            queryClient.invalidateQueries({ queryKey: ['favoritesList'] })
             toast.success(isFavorited ? 'Removed from favorites' : 'Saved to favorites')
         },
         onError: () => {
             toast.error('Failed to update favorites')
+        }
+    })
+
+    const toggleLikeMutation = useMutation({
+        mutationFn: async (reviewId: string) => {
+            const res = await api.post(`/api/reviews/${reviewId}/like`)
+            return res.data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['reviews', id] })
+        },
+        onError: () => {
+            toast.error('Failed to update like status')
         }
     })
 
@@ -196,19 +210,6 @@ export function DestinationDetail() {
             toast.error('Failed to delete review')
         }
     }
-
-    const toggleLikeMutation = useMutation({
-        mutationFn: async (reviewId: string) => {
-            const res = await api.post(`/api/reviews/${reviewId}/like`)
-            return res.data
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['reviews', id] })
-        },
-        onError: () => {
-            toast.error('Failed to update like status')
-        }
-    })
 
     const handleToggleLike = (reviewId: string) => {
         if (!user) {

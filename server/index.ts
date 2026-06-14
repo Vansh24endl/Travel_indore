@@ -39,6 +39,7 @@ import {
     toggleReviewLike
 } from '../src/Data/Database'
 import { authenticateToken, requireAdmin, type AuthenticatedRequest } from './middleware/auth'
+import { extractQueryIntent, getRealPlaces, generateAIResponse } from './services/ai'
 
 if (fs.existsSync('.env.local')) {
     dotenv.config({ path: '.env.local' })
@@ -479,6 +480,30 @@ app.post('/api/auth/reset-password', async (req, res) => {
         return res.json({ ok: true, message: 'Password reset successful!' })
     } catch (error) {
         return res.status(400).json({ ok: false, message: String(error) })
+    }
+})
+
+// --- AI ASSISTANT QUERY ROUTE ---
+app.post('/api/ai/chat', async (req, res) => {
+    try {
+        const { message } = req.body
+        if (!message) {
+            return res.status(400).json({ ok: false, message: 'Message query is required' })
+        }
+
+        const extracted = await extractQueryIntent(message)
+        const places = await getRealPlaces(extracted)
+        const responseData = await generateAIResponse(message, extracted, places)
+
+        return res.json({
+            ok: true,
+            extracted,
+            message: responseData.text,
+            places: responseData.places
+        })
+    } catch (error) {
+        console.error('AI query route failed:', error)
+        return res.status(500).json({ ok: false, message: 'Internal AI service error' })
     }
 })
 
