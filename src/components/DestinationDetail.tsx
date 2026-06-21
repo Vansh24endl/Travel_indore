@@ -21,7 +21,6 @@ export function DestinationDetail() {
     const [travelersCount, setTravelersCount] = useState(1)
     const [isBookingLoading, setIsBookingLoading] = useState(false)
 
-    // Review form states
     const [reviewRating, setReviewRating] = useState(5)
     const [reviewComment, setReviewComment] = useState('')
     const [isReviewLoading, setIsReviewLoading] = useState(false)

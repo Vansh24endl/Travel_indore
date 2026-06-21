@@ -65,6 +65,7 @@ export function Explore() {
             setLongitude(75.8578)
             setOpeningHours('')
             setTicketPrice(0)
+            setStartingPrice('₹0')
             setBestTimeToVisit('')
             setEstimatedVisitDuration('')
         },
@@ -75,7 +76,7 @@ export function Explore() {
 
     const handlePostSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!title.trim() || !description.trim() || !location.trim() || !openingHours.trim() || ticketPrice === '' || latitude === '' || longitude === '') {
+        if (!title.trim() || !description.trim() || !location.trim() || !openingHours.trim() || ticketPrice === '' || startingPrice === '' || latitude === '' || longitude === '') {
             toast.error('Please fill out all required fields')
             return
         }
@@ -97,6 +98,7 @@ export function Explore() {
             longitude: Number(longitude),
             openingHours,
             ticketPrice: Number(ticketPrice),
+            startingPrice: startingPrice.trim() || '₹0',
             bestTimeToVisit: bestTimeToVisit.trim() || 'October to March',
             estimatedVisitDuration: estimatedVisitDuration.trim() || '2 hours'
         })
@@ -127,11 +129,14 @@ export function Explore() {
                                  dest.location.toLowerCase().includes(searchTerm.toLowerCase())
             const matchesCategory = selectedCategory === 'all' || dest.category === selectedCategory
             const matchesPrice = dest.ticketPrice <= maxPrice
+            const matchesStartingPrice = dest.startingPrice <= maxPrice
             const matchesRating = dest.rating >= minRating
             return matchesSearch && matchesCategory && matchesPrice && matchesRating
         })
         .sort((a: any, b: any) => {
             if (sortBy === 'rating') return b.rating - a.rating
+            if(sortBy === 'startingPriceLow') return a.startingPrice - b.startingPrice
+            if(sortBy === 'startingPriceHigh') return b.startingPrice - a.startingPrice
             if (sortBy === 'priceLow') return a.ticketPrice - b.ticketPrice
             if (sortBy === 'priceHigh') return b.ticketPrice - a.ticketPrice
             if (sortBy === 'reviews') return b.reviewsCount - a.reviewsCount

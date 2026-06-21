@@ -3,6 +3,7 @@ import { router } from './routes'
 import { AuthProvider } from '@/context/AuthContext'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
+import { NetworkStatusIndicator } from '@/components/ui/NetworkStatusIndicator'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,6 +18,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <NetworkStatusIndicator />
         <RouterProvider router={router} />
         <Toaster position="top-right" richColors theme="system" />
       </AuthProvider>
