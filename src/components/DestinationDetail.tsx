@@ -31,6 +31,9 @@ export function DestinationDetail() {
     const [editComment, setEditComment] = useState('')
     const [isEditSaving, setIsEditSaving] = useState(false)
 
+    // Map Zoom State
+    const [mapZoom, setMapZoom] = useState(15)
+
     // Fetch destination details
     const { data: destination, isLoading: isDestLoading } = useQuery({
         queryKey: ['destination', id],
@@ -356,24 +359,72 @@ export function DestinationDetail() {
                                 </div>
                             </div>
                         </div>
-                    </Card>
-
-                    {/* Google Maps / Location Section */}
-                    <Card hoverable={false} className="space-y-4">
+                    </Card>                    {/* Google Maps / Location Section */}
+                    <Card hoverable={false} className="space-y-4 overflow-hidden">
                         <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Interactive Location Map</h3>
-                            <span className="text-xs text-indigo-650 dark:text-indigo-400 font-bold">Zoom Enabled</span>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Interactive Location Map</h3>
+                                <p className="text-xs text-gray-550 dark:text-gray-400">View coordinates, adjust zoom, or get driving directions</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setMapZoom(prev => Math.max(12, prev - 1))}
+                                    className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 font-bold text-sm flex items-center justify-center text-gray-700 dark:text-white shadow transition-all active:scale-95 cursor-pointer"
+                                    title="Zoom Out"
+                                >
+                                    -
+                                </button>
+                                <span className="text-xs font-mono font-bold text-gray-650 dark:text-gray-300 w-12 text-center bg-gray-50 dark:bg-gray-850 py-1 rounded">
+                                    {mapZoom}x
+                                </span>
+                                <button
+                                    onClick={() => setMapZoom(prev => Math.min(19, prev + 1))}
+                                    className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 font-bold text-sm flex items-center justify-center text-gray-700 dark:text-white shadow transition-all active:scale-95 cursor-pointer"
+                                    title="Zoom In"
+                                >
+                                    +
+                                </button>
+                            </div>
                         </div>
-                        <div className="h-64 bg-slate-100 dark:bg-slate-800 rounded-2xl relative flex items-center justify-center overflow-hidden border border-gray-200 dark:border-gray-700">
-                            <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#6366f1_1px,transparent_1px)] [background-size:16px_16px]"></div>
-                            <div className="relative z-10 text-center space-y-2 max-w-sm px-6">
-                                <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-2 text-indigo-600">
-                                    <MapPin className="w-6 h-6 animate-bounce" />
+
+                        <div className="h-80 bg-slate-100 dark:bg-slate-800 rounded-3xl overflow-hidden relative border border-gray-250/50 dark:border-gray-850/80 group/map shadow-inner">
+                            <iframe
+                                title="Indore Attraction Interactive Map"
+                                src={`https://maps.google.com/maps?q=${destination.latitude},${destination.longitude}&z=${mapZoom}&t=m&output=embed`}
+                                className="w-full h-full border-none opacity-90 dark:opacity-80 dark:invert-[0.9] dark:hue-rotate-[180deg] transition-all duration-350"
+                                loading="lazy"
+                                allowFullScreen
+                            />
+                            
+                            {/* Floating details badge overlay */}
+                            <div className="absolute bottom-4 left-4 right-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/20 dark:border-gray-800 shadow-lg flex flex-col sm:flex-row gap-3 justify-between sm:items-center">
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-1.5 text-xs text-gray-900 dark:text-white font-extrabold">
+                                        <MapPin className="w-3.5 h-3.5 text-indigo-650" />
+                                        <span>GPS Coordinates</span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-550 font-mono">
+                                        Lat: {destination.latitude.toFixed(4)}° N | Long: {destination.longitude.toFixed(4)}° E
+                                    </p>
                                 </div>
-                                <h4 className="font-bold text-gray-850 dark:text-white">{destination.title} Location Info</h4>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Latitude: {destination.latitude} | Longitude: {destination.longitude}. Located in the tourist hub of Indore.
-                                </p>
+                                <div className="flex gap-2">
+                                    <a
+                                        href={`https://www.google.com/maps/search/?api=1&query=${destination.latitude},${destination.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-3.5 py-1.5 bg-white dark:bg-gray-855 hover:bg-gray-50 text-indigo-600 dark:text-indigo-400 font-bold text-xs rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-all"
+                                    >
+                                        Open Maps
+                                    </a>
+                                    <a
+                                        href={`https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-indigo-500/20 transition-all"
+                                    >
+                                        Get Directions
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </Card>

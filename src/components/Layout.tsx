@@ -2,6 +2,8 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router'
 import { Home, Compass, Calendar, User, Menu, X, LogOut, ShieldAlert, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { motion, AnimatePresence } from 'framer-motion'
+
 
 export function Layout() {
   const location = useLocation()
@@ -58,13 +60,20 @@ export function Layout() {
                 const Icon = link.icon;
                 const isActive = location.pathname === link.to;
                 return (
-                  <li key={link.to}>
+                  <li key={link.to} className="relative">
+                    {isActive && (
+                      <motion.div
+                        layoutId="desktopActiveNav"
+                        className="absolute inset-0 bg-indigo-50 dark:bg-indigo-900/50 rounded-xl"
+                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                      />
+                    )}
                     <Link
                       to={link.to}
-                      className={`group flex gap-x-3 rounded-xl p-3 transition-all duration-300 ease-out ${
+                      className={`relative z-10 group flex gap-x-3 rounded-xl p-3 transition-all duration-300 ease-out ${
                         isActive
-                          ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:translate-x-1'
+                          ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 hover:translate-x-1'
                       }`}
                     >
                       <Icon className={`h-6 w-6 shrink-0 transition-all duration-300 ${isActive ? 'text-indigo-600 dark:text-indigo-400 scale-110' : 'text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:scale-105'}`} />
@@ -128,61 +137,78 @@ export function Layout() {
       </div>
 
       {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="relative z-50 lg:hidden">
-          <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm transition-opacity duration-300" onClick={() => setMobileMenuOpen(false)} />
-          <div className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white dark:bg-gray-800 px-6 py-6 sm:max-w-sm transform transition-transform duration-300 ease-out shadow-2xl">
-            <div className="flex items-center justify-between">
-              <Link to="/" className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                  <Compass className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-lg font-bold text-gray-900 dark:text-white">Indore Explorer</span>
-              </Link>
-              <button
-                type="button"
-                className="-m-2.5 rounded-md p-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            <div className="mt-6 flow-root">
-              <div className="-my-6 divide-y divide-gray-200 dark:divide-gray-700">
-                <div className="space-y-2 py-6">
-                  {navLinks.map((link) => {
-                    const Icon = link.icon;
-                    const isActive = location.pathname === link.to;
-                    return (
-                      <Link
-                        key={link.to}
-                        to={link.to}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-300 ${
-                          isActive ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:translate-x-2'
-                        }`}
-                      >
-                        <Icon className={`h-6 w-6 transition-all duration-300 ${isActive ? 'scale-110' : ''}`} />
-                        <span className="font-semibold">{link.label}</span>
-                      </Link>
-                    );
-                  })}
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false)
-                      handleLogout()
-                    }}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-red-650 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-300 font-medium"
-                  >
-                    <LogOut className="h-6 w-6" />
-                    <span>Log out</span>
-                  </button>
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            {/* Drawer Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white dark:bg-gray-800 px-6 py-6 sm:max-w-sm shadow-2xl"
+            >
+              <div className="flex items-center justify-between">
+                <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                  <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                    <Compass className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">Indore Explorer</span>
+                </Link>
+                <button
+                  type="button"
+                  className="-m-2.5 rounded-md p-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="mt-6 flow-root">
+                <div className="-my-6 divide-y divide-gray-200 dark:divide-gray-700">
+                  <div className="space-y-2 py-6">
+                    {navLinks.map((link) => {
+                      const Icon = link.icon;
+                      const isActive = location.pathname === link.to;
+                      return (
+                        <Link
+                          key={link.to}
+                          to={link.to}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-300 ${
+                            isActive ? 'bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:translate-x-2'
+                          }`}
+                        >
+                          <Icon className={`h-6 w-6 transition-all duration-300 ${isActive ? 'scale-110' : ''}`} />
+                          <span className="font-semibold">{link.label}</span>
+                        </Link>
+                      );
+                    })}
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        handleLogout()
+                      }}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-red-650 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-300 font-medium"
+                    >
+                      <LogOut className="h-6 w-6" />
+                      <span>Log out</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Main Content */}
       <main className="lg:pl-72 min-h-screen flex flex-col">
@@ -201,12 +227,17 @@ export function Layout() {
               <Link
                 key={link.to}
                 to={link.to}
-                className={`flex flex-col items-center gap-1 px-3 py-2 transition-all duration-300 ${
-                  isActive ? 'text-indigo-600 dark:text-indigo-400 scale-105' : 'text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400'
-                }`}
+                className="relative flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 text-gray-500 dark:text-gray-400"
               >
-                <Icon className={`h-5 w-5 transition-all duration-300 ${isActive ? 'scale-110' : 'hover:scale-105'}`} />
-                <span className="text-[10px] font-semibold">{link.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="mobileActiveNav"
+                    className="absolute inset-0 bg-indigo-50 dark:bg-indigo-900/50 rounded-xl"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <Icon className={`relative z-10 h-5 w-5 transition-all duration-300 ${isActive ? 'text-indigo-600 dark:text-indigo-400 scale-110' : 'hover:scale-105 hover:text-indigo-600 dark:hover:text-indigo-400'}`} />
+                <span className={`relative z-10 text-[10px] font-semibold transition-colors duration-300 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'hover:text-indigo-600 dark:hover:text-indigo-400'}`}>{link.label}</span>
               </Link>
             );
           })}

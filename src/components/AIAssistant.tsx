@@ -140,7 +140,6 @@ export function AIAssistant() {
                 </div>
             </div>
 
-            {/* Chat Body & Input Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
                 {/* Suggestions sidebar */}
                 <div className="hidden lg:block space-y-4">
@@ -178,9 +177,7 @@ export function AIAssistant() {
                     </Card>
                 </div>
 
-                {/* Main Chat Box */}
                 <div className="lg:col-span-3 flex flex-col justify-between h-full bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-xl">
-                    {/* Message Area */}
                     <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[50vh] min-h-[30vh]">
                         <AnimatePresence>
                             {messages.map(msg => (
@@ -204,8 +201,6 @@ export function AIAssistant() {
                                             : 'bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-250 rounded-tl-none'
                                     }`}>
                                         {formatMessageText(msg.text)}
-
-                                        {/* Rich Cards Section */}
                                         {msg.places && msg.places.length > 0 && (
                                             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-200/50 dark:border-gray-700/50 pt-4">
                                                 {msg.places.map((place, idx) => (
@@ -258,8 +253,6 @@ export function AIAssistant() {
                             )}
                         </AnimatePresence>
                     </div>
-
-                    {/* Input Bar */}
                     <div className="p-4 border-t border-gray-150/60 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-md">
                         <form
                             onSubmit={e => {
@@ -280,6 +273,18 @@ export function AIAssistant() {
                             </Button>
                         </form>
                     </div>
+                    {/* <div>
+                        import {GoogleGenAi} from "@google/genai";
+                        const ai = new GoogleGenAi({});
+                        async function main(params:type) {
+                            const response = await ai.models.genrateContent({
+                                model: "gemini-3.5-flash",
+                                contents: "Write your thoughts in few words",
+                            })
+                            console.log(responsee.text);
+                        }
+                        await main();
+                    </div> */}
                 </div>
             </div>
         </div>
