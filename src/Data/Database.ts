@@ -89,7 +89,7 @@ export async function getUserById(userId: string) {
         profileImage: user.profileImage,
         role: user.role,
         isActive: user.isActive,
-        savedDestinations: user.savedDestinations ? user.savedDestinations.map(id => id.toString()) : [],
+        savedDestinations: user.savedDestinations ? user.savedDestinations.filter(id => id).map(id => id.toString()) : [],
         createdAt: user.createdAt
     }
 }
@@ -408,7 +408,7 @@ export async function toggleFavoriteDestination(userId: string, destinationId: s
     if (!user) throw new Error('User not found')
 
     const destObjId = new mongoose.Types.ObjectId(destinationId)
-    const saved = user.savedDestinations || []
+    const saved = user.savedDestinations ? [...user.savedDestinations] : []
     const idx = saved.findIndex(id => id.toString() === destinationId)
 
     if (idx > -1) {
@@ -418,6 +418,7 @@ export async function toggleFavoriteDestination(userId: string, destinationId: s
     }
 
     user.savedDestinations = saved
+    user.markModified('savedDestinations')
     await user.save()
     return saved.map(id => id.toString())
 }
@@ -426,7 +427,8 @@ export async function getFavoriteDestinations(userId: string) {
     await connectToDatabase()
     const user = await UserModel.findById(userId).populate('savedDestinations')
     if (!user) throw new Error('User not found')
-    return user.savedDestinations || []
+    const list = user.savedDestinations || []
+    return list.filter(item => item !== null)
 }
 
 export async function updateReview(reviewId: string, userId: string, rating: number, comment: string) {

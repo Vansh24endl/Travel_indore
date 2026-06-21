@@ -82,9 +82,6 @@ app.post('/api/seed', async (_req, res) => {
     }
 })
 
-
-// --- AUTHENTICATION ROUTES ---
-
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { fullname, email, phone, password, profileImage } = req.body
@@ -187,6 +184,16 @@ app.get('/api/destinations', async (_req, res) => {
         return res.json({ ok: true, destinations })
     } catch (error) {
         return res.status(500).json({ ok: false, message: 'Failed to fetch destinations' })
+    }
+})
+
+app.get('/api/destinations/favorites', authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+        if (!req.user) return res.status(401).json({ ok: false, message: 'Unauthorized' })
+        const destinations = await getFavoriteDestinations(req.user.id)
+        return res.json({ ok: true, destinations })
+    } catch (error) {
+        return res.status(500).json({ ok: false, message: String(error) })
     }
 })
 
@@ -415,16 +422,6 @@ app.post('/api/destinations/:id/favorite', authenticateToken, async (req: Authen
         return res.json({ ok: true, favorites })
     } catch (error) {
         return res.status(400).json({ ok: false, message: String(error) })
-    }
-})
-
-app.get('/api/destinations/favorites', authenticateToken, async (req: AuthenticatedRequest, res) => {
-    try {
-        if (!req.user) return res.status(401).json({ ok: false, message: 'Unauthorized' })
-        const destinations = await getFavoriteDestinations(req.user.id)
-        return res.json({ ok: true, destinations })
-    } catch (error) {
-        return res.status(500).json({ ok: false, message: String(error) })
     }
 })
 
