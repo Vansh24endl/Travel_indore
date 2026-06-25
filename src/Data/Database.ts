@@ -458,7 +458,7 @@ export async function updateReview(reviewId: string, userId: string, rating: num
 export async function setResetToken(email: string, token: string, expires: Date) {
     await connectToDatabase()
     const user = await UserModel.findOne({ email: email.toLowerCase().trim() })
-    if (!user) throw new Error('No user registered with this email address')
+    if (!user) return false
     
     user.resetPasswordToken = token
     user.resetPasswordExpires = expires

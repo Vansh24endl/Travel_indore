@@ -6,6 +6,7 @@ import fs from 'fs'
 import jwt from 'jsonwebtoken'
 import helmet from 'helmet'
 import { rateLimit } from 'express-rate-limit'
+import { z } from 'zod'
 import {
     registerUser,
     loginUser,
@@ -68,6 +69,63 @@ const apiLimiter = rateLimit({
 })
 app.use('/api/', apiLimiter)
 
+// Strict Rate Limiter for authentication endpoints
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 requests per window
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { ok: false, message: 'Too many authentication attempts. Please try again after 15 minutes.' },
+    // Skip rate limiting for local development testing to avoid blocking the user
+    skip: (req) => {
+        const ip = req.ip || req.socket.remoteAddress || '';
+        return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost' || req.hostname === '127.0.0.1';
+    }
+})
+
+// Validation Schemas
+const registerSchema = z.object({
+    fullname: z.string()
+        .min(2, 'Name must be at least 2 characters long')
+        .max(100, 'Name must not exceed 100 characters')
+        .trim(),
+    email: z.string()
+        .email('Invalid email address format')
+        .toLowerCase()
+        .trim(),
+    phone: z.string()
+        .regex(/^[+]?[0-9\s-]{10,20}$/, 'Invalid phone number format. Must be 10-20 digits, optionally starting with "+".')
+        .trim(),
+    password: z.string()
+        .min(8, 'Password must be at least 8 characters long')
+        .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+        .regex(/[0-9]/, 'Password must contain at least one number'),
+    profileImage: z.string().optional()
+})
+
+const loginSchema = z.object({
+    email: z.string()
+        .email('Invalid email address format')
+        .toLowerCase()
+        .trim(),
+    password: z.string().min(1, 'Password is required')
+})
+
+const forgotPasswordSchema = z.object({
+    email: z.string()
+        .email('Invalid email address format')
+        .toLowerCase()
+        .trim()
+})
+
+const resetPasswordSchema = z.object({
+    token: z.string().min(1, 'Token is required'),
+    password: z.string()
+        .min(8, 'Password must be at least 8 characters long')
+        .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+        .regex(/[0-9]/, 'Password must contain at least one number')
+})
+
 // Health check and db seed helper
 app.get('/api/health', (_req, res) => {
     res.json({ ok: true, service: 'indore-travel-auth-api' })
@@ -82,16 +140,14 @@ app.post('/api/seed', async (_req, res) => {
     }
 })
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
-        const { fullname, email, phone, password, profileImage } = req.body
-
-        if (!fullname || !email || !phone || !password) {
-            return res.status(400).json({
-                ok: false,
-                message: 'All fields (fullname, email, phone, password) are required.'
-            })
+        const result = registerSchema.safeParse(req.body)
+        if (!result.success) {
+            const errorMsg = result.error.issues.map(issue => issue.message).join('. ')
+            return res.status(400).json({ ok: false, message: errorMsg })
         }
+        const { fullname, email, phone, password, profileImage } = result.data
 
         // Set role to admin if email starts with admin@indoretravel
         const role = email.toLowerCase().startsWith('admin@indoretravel') ? 'admin' : 'user'
@@ -110,16 +166,14 @@ app.post('/api/auth/register', async (req, res) => {
     }
 })
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
     try {
-        const { email, password } = req.body
-
-        if (!email || !password) {
-            return res.status(400).json({
-                ok: false,
-                message: 'Email and password are required.'
-            })
+        const result = loginSchema.safeParse(req.body)
+        if (!result.success) {
+            const errorMsg = result.error.issues.map(issue => issue.message).join('. ')
+            return res.status(400).json({ ok: false, message: errorMsg })
         }
+        const { email, password } = result.data
 
         const user = await loginUser({ email, password })
         if (!user) {
@@ -448,30 +502,49 @@ app.post('/api/reviews/:id/like', authenticateToken, async (req: AuthenticatedRe
 })
 
 // --- PASSWORD RECOVERY ROUTES ---
-app.post('/api/auth/forgot-password', async (req, res) => {
+app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
     try {
-        const { email } = req.body
-        if (!email) return res.status(400).json({ ok: false, message: 'Email is required' })
+        const result = forgotPasswordSchema.safeParse(req.body)
+        if (!result.success) {
+            const errorMsg = result.error.issues.map(issue => issue.message).join('. ')
+            return res.status(400).json({ ok: false, message: errorMsg })
+        }
+        const { email } = result.data
 
         const token = crypto.randomBytes(20).toString('hex')
         const expires = new Date(Date.now() + 3600000) // 1 hour
 
-        await setResetToken(email, token, expires)
+        const userExists = await setResetToken(email, token, expires)
         
+        // Print real token to console for developer convenience/debugging
+        if (userExists) {
+            console.log(`[AUTH] Password reset token generated for ${email}: ${token}`)
+        } else {
+            console.log(`[AUTH] Forgot password request for non-registered email: ${email}`)
+        }
+
+        // Return a dummy token if user doesn't exist, to prevent email enumeration,
+        // while allowing the portfolio demo workflow to complete without errors.
+        const responseToken = userExists ? token : crypto.randomBytes(20).toString('hex')
+
         return res.json({
             ok: true,
-            message: 'Password reset link generated successfully. (Check network response/logs for reset token)',
-            token
+            message: 'If the email is registered, a password reset link has been generated.',
+            token: responseToken
         })
     } catch (error) {
-        return res.status(400).json({ ok: false, message: String(error) })
+        return res.status(500).json({ ok: false, message: 'An error occurred during password reset.' })
     }
 })
 
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
     try {
-        const { token, password } = req.body
-        if (!token || !password) return res.status(400).json({ ok: false, message: 'Token and Password are required' })
+        const result = resetPasswordSchema.safeParse(req.body)
+        if (!result.success) {
+            const errorMsg = result.error.issues.map(issue => issue.message).join('. ')
+            return res.status(400).json({ ok: false, message: errorMsg })
+        }
+        const { token, password } = result.data
 
         await verifyAndResetPassword(token, password)
         return res.json({ ok: true, message: 'Password reset successful!' })
