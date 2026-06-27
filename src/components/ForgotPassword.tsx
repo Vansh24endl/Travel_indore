@@ -31,7 +31,7 @@ export function ForgotPassword() {
         try {
             const res = await api.post('/api/auth/forgot-password', { email })
             if (res.data.ok) {
-                toast.success('Reset link generated successfully!')
+                toast.success('Verification OTP sent successfully!')
                 // Expose token for portfolio review convenience
                 if (res.data.token) {
                     setDemoToken(res.data.token)
@@ -92,7 +92,7 @@ export function ForgotPassword() {
                                 {isLoading ? (
                                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                    'Request Reset Link'
+                                    'Send OTP Code'
                                 )}
                             </button>
                         </form>
@@ -101,15 +101,15 @@ export function ForgotPassword() {
                             <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto text-indigo-400">
                                 <Key className="w-6 h-6 animate-bounce" />
                             </div>
-                            <h4 className="font-extrabold text-lg">Reset Link Generated!</h4>
+                            <h4 className="font-extrabold text-lg">Verification OTP Sent!</h4>
                             <p className="text-xs text-gray-400 leading-relaxed">
-                                Under a production environment, an email containing the reset link would be dispatched. For this portfolio demo, you can copy the token below to complete the reset.
+                                Under a production environment, an email containing the 6-digit OTP code would be sent to your email. For this demo, you can copy the code below.
                             </p>
-                            <div className="bg-white/10 p-3 rounded-xl select-all font-mono text-xs border border-white/10 break-all">
+                            <div className="bg-white/10 p-3 rounded-xl select-all font-mono text-xl font-bold tracking-widest text-indigo-400 border border-white/10 break-all">
                                 {demoToken}
                             </div>
                             <Link
-                                to={`/reset-password?token=${demoToken}`}
+                                to={`/reset-password?email=${encodeURIComponent(email)}&otp=${demoToken}`}
                                 className="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-center shadow-lg transition-all"
                             >
                                 Proceed to Reset Password

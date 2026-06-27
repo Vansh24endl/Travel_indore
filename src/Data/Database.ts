@@ -466,14 +466,15 @@ export async function setResetToken(email: string, token: string, expires: Date)
     return true
 }
 
-export async function verifyAndResetPassword(token: string, newPasswordRaw: string) {
+export async function verifyAndResetPassword(email: string, token: string, newPasswordRaw: string) {
     await connectToDatabase()
     const user = await UserModel.findOne({
+        email: email.toLowerCase().trim(),
         resetPasswordToken: token,
         resetPasswordExpires: { $gt: new Date() }
     })
     
-    if (!user) throw new Error('Password reset token is invalid or has expired')
+    if (!user) throw new Error('Password reset OTP is invalid or has expired')
     
     user.passwordHash = await hashPassword(newPasswordRaw)
     user.resetPasswordToken = undefined

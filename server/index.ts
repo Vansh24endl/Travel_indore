@@ -41,6 +41,7 @@ import {
 } from '../src/Data/Database'
 import { authenticateToken, requireAdmin, type AuthenticatedRequest } from './middleware/auth'
 import { extractQueryIntent, getRealPlaces, generateAIResponse } from './services/ai'
+import { sendOTPEmail } from './services/email'
 
 if (fs.existsSync('.env.local')) {
     dotenv.config({ path: '.env.local' })
@@ -119,7 +120,8 @@ const forgotPasswordSchema = z.object({
 })
 
 const resetPasswordSchema = z.object({
-    token: z.string().min(1, 'Token is required'),
+    email: z.string().email('Invalid email address format').toLowerCase().trim(),
+    otp: z.string().length(6, 'OTP must be exactly 6 digits'),
     password: z.string()
         .min(8, 'Password must be at least 8 characters long')
         .regex(/[A-Za-z]/, 'Password must contain at least one letter')
@@ -511,28 +513,29 @@ app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
         }
         const { email } = result.data
 
-        const token = crypto.randomBytes(20).toString('hex')
-        const expires = new Date(Date.now() + 3600000) // 1 hour
+        const otp = Math.floor(100000 + Math.random() * 900000).toString()
+        const expires = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
 
-        const userExists = await setResetToken(email, token, expires)
+        const userExists = await setResetToken(email, otp, expires)
         
-        // Print real token to console for developer convenience/debugging
         if (userExists) {
-            console.log(`[AUTH] Password reset token generated for ${email}: ${token}`)
+            await sendOTPEmail(email, otp)
         } else {
             console.log(`[AUTH] Forgot password request for non-registered email: ${email}`)
         }
 
-        // Return a dummy token if user doesn't exist, to prevent email enumeration,
+        // Return a dummy OTP/token if user doesn't exist, to prevent email enumeration,
         // while allowing the portfolio demo workflow to complete without errors.
-        const responseToken = userExists ? token : crypto.randomBytes(20).toString('hex')
+        const responseOtp = userExists ? otp : Math.floor(100000 + Math.random() * 900000).toString()
 
         return res.json({
             ok: true,
-            message: 'If the email is registered, a password reset link has been generated.',
-            token: responseToken
+            message: 'If the email is registered, an OTP code has been sent.',
+            token: responseOtp,
+            otp: responseOtp
         })
     } catch (error) {
+        console.error('[AUTH] Forgot password error:', error)
         return res.status(500).json({ ok: false, message: 'An error occurred during password reset.' })
     }
 })
@@ -544,9 +547,9 @@ app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
             const errorMsg = result.error.issues.map(issue => issue.message).join('. ')
             return res.status(400).json({ ok: false, message: errorMsg })
         }
-        const { token, password } = result.data
+        const { email, otp, password } = result.data
 
-        await verifyAndResetPassword(token, password)
+        await verifyAndResetPassword(email, otp, password)
         return res.json({ ok: true, message: 'Password reset successful!' })
     } catch (error) {
         return res.status(400).json({ ok: false, message: String(error) })

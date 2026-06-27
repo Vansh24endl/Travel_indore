@@ -94,7 +94,12 @@ export function Login() {
 
                         {/* Password */}
                         <div>
-                            <label className="block text-sm font-semibold text-gray-300 mb-2">Password</label>
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="block text-sm font-semibold text-gray-300">Password</label>
+                                <Link to="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">
+                                    Forgot Password?
+                                </Link>
+                            </div>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input
