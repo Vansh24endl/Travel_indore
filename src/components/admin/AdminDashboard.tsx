@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Users, Compass, Calendar, Star, DollarSign, ArrowRight, ShieldCheck } from 'lucide-react'
 import Card from '../ui/Card'
 import Loader from '../ui/Loader'
+import { ChartAreaInteractive } from './ChartAreaInteractive'
 
 export function AdminDashboard() {
     // Fetch stats
@@ -65,95 +66,9 @@ export function AdminDashboard() {
                 })}
             </div>
 
-            {/* Monthly Growth Chart Section */}
-            <Card hoverable={false} className="space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
-                    <div>
-                        <h4 className="font-bold text-base text-gray-900 dark:text-white">Monthly Booking Revenue Growth</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Visual analytics of platform bookings over the current year</p>
-                    </div>
-                    <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950 text-indigo-750 dark:text-indigo-400 font-bold text-xs rounded-full">
-                        Interactive SVG Analytics
-                    </span>
-                </div>
+            <ChartAreaInteractive data={stats?.chartData} />
 
-                <div className="w-full overflow-x-auto pb-2">
-                    <div className="min-w-[600px] h-52 flex items-end justify-between relative px-2">
-                        {stats?.monthlyRevenue && stats.monthlyRevenue.length > 0 ? (
-                            <svg className="w-full h-full" viewBox="0 0 600 180" preserveAspectRatio="none">
-                                {/* Grid Lines */}
-                                <line x1="40" y1="20" x2="580" y2="20" stroke="currentColor" className="text-gray-100 dark:text-gray-800" strokeDasharray="4" />
-                                <line x1="40" y1="70" x2="580" y2="70" stroke="currentColor" className="text-gray-100 dark:text-gray-800" strokeDasharray="4" />
-                                <line x1="40" y1="120" x2="580" y2="120" stroke="currentColor" className="text-gray-100 dark:text-gray-800" strokeDasharray="4" />
-                                <line x1="40" y1="150" x2="580" y2="150" stroke="currentColor" className="text-gray-250 dark:text-gray-700" />
-                                
-                                {/* Bars */}
-                                {stats.monthlyRevenue.map((item: any, idx: number) => {
-                                    const maxRevenue = Math.max(...stats.monthlyRevenue.map((d: any) => d.revenue), 100)
-                                    const x = 40 + idx * 110 + 30
-                                    const height = (item.revenue / maxRevenue) * 110
-                                    const y = 150 - height
-                                    return (
-                                        <g key={idx} className="group cursor-pointer">
-                                            <rect 
-                                                x={x} 
-                                                y={y} 
-                                                width="36" 
-                                                height={height} 
-                                                rx="4"
-                                                className="fill-indigo-600/15 group-hover:fill-indigo-600/35 transition-all duration-300" 
-                                            />
-                                            <text x={x + 18} y={y - 8} textAnchor="middle" className="text-[10px] font-black fill-indigo-600 dark:fill-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                ₹{Math.round(item.revenue)}
-                                            </text>
-                                            <text x={x + 18} y="165" textAnchor="middle" className="text-[10px] font-extrabold fill-gray-550 dark:fill-gray-400">
-                                                {item.name}
-                                            </text>
-                                        </g>
-                                    )
-                                })}
-
-                                {/* Line Chart overlay */}
-                                <path 
-                                    d={stats.monthlyRevenue.map((item: any, idx: number) => {
-                                        const maxRevenue = Math.max(...stats.monthlyRevenue.map((d: any) => d.revenue), 100)
-                                        const x = 40 + idx * 110 + 48
-                                        const y = 150 - (item.revenue / maxRevenue) * 110
-                                        return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`
-                                    }).join(' ')}
-                                    fill="none" 
-                                    stroke="#6366f1" 
-                                    strokeWidth="3.5"
-                                    strokeLinecap="round"
-                                />
-
-                                {/* Dots on line */}
-                                {stats.monthlyRevenue.map((item: any, idx: number) => {
-                                    const maxRevenue = Math.max(...stats.monthlyRevenue.map((d: any) => d.revenue), 100)
-                                    const x = 40 + idx * 110 + 48
-                                    const y = 150 - (item.revenue / maxRevenue) * 110
-                                    return (
-                                        <circle 
-                                            key={idx}
-                                            cx={x}
-                                            cy={y}
-                                            r="4.5"
-                                            className="fill-white dark:fill-gray-900 stroke-indigo-600 stroke-[3px] hover:r-6 transition-all"
-                                        />
-                                    )
-                                })}
-                            </svg>
-                        ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-xs">No analytics data available</div>
-                        )}
-                    </div>
-                </div>
-            </Card>
-
-            {/* Revenue & Quick Actions Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
-                {/* Total Revenue Box */}
                 <Card hoverable={false} className="flex flex-col justify-between border border-indigo-500/10">
                     <div className="space-y-2">
                         <span className="text-xs text-gray-550 dark:text-gray-400 font-bold uppercase tracking-wider">Gross Booking Revenue</span>
@@ -167,7 +82,6 @@ export function AdminDashboard() {
                     </p>
                 </Card>
 
-                {/* Quick Management Links */}
                 <Card hoverable={false} className="lg:col-span-2 space-y-4">
                     <h4 className="font-bold text-sm text-gray-900 dark:text-white uppercase tracking-wider border-b border-gray-100 dark:border-gray-800 pb-2">
                         Management Links
