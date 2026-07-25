@@ -53,31 +53,27 @@ const app = express()
 const PORT = Number(process.env.API_PORT || 4000)
 const JWT_SECRET = process.env.JWT_SECRET || 'indore-travel-secret-key-123'
 
-// Security Middleware
 app.use(helmet({
-    contentSecurityPolicy: false // Allow easy integration in dev
+    contentSecurityPolicy: false 
 }))
 app.use(cors())
 app.use(express.json())
 
-// Rate Limiter
 const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per window
+    windowMs: 15 * 60 * 1000, 
+    max: 100, 
     standardHeaders: true,
     legacyHeaders: false,
     message: { ok: false, message: 'Too many requests, please try again later.' }
 })
 app.use('/api/', apiLimiter)
 
-// Strict Rate Limiter for authentication endpoints
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // Limit each IP to 10 requests per window
+    windowMs: 15 * 60 * 1000, 
+    max: 10, 
     standardHeaders: true,
     legacyHeaders: false,
     message: { ok: false, message: 'Too many authentication attempts. Please try again after 15 minutes.' },
-    // Skip rate limiting for local development testing to avoid blocking the user
     skip: (req) => {
         const ip = req.ip || req.socket.remoteAddress || '';
         return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost' || req.hostname === '127.0.0.1';

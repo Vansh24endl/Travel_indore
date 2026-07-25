@@ -10,6 +10,12 @@ import Loader from './ui/Loader'
 import EmptyState from './ui/EmptyState'
 import Modal from './ui/Modal'
 import Button from './ui/Button'
+import ImageWithFallback from './ui/ImageWithFallback'
+
+function sanitizeText(text?: string): string {
+    if (!text) return ''
+    return text.replace(/\btesty\b/gi, 'taste')
+}
 
 export function Explore() {
     const queryClient = useQueryClient()
@@ -298,17 +304,12 @@ export function Explore() {
                         <Card key={dest._id || dest.id} className="overflow-hidden p-0 group flex flex-col justify-between border border-gray-200/40 dark:border-gray-800/80">
                             <div>
                                 <div className="h-56 overflow-hidden relative">
-                                    {dest.images?.[0] ? (
-                                        <img
-                                            src={dest.images[0]}
-                                            alt={dest.title}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-gray-400">
-                                            <Compass className="w-10 h-10 animate-spin-slow" />
-                                        </div>
-                                    )}
+                                    <ImageWithFallback
+                                        src={dest.images?.[0]}
+                                        alt={dest.title}
+                                        category={dest.category}
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    />
                                     <div className="absolute top-4 right-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 text-amber-500 font-bold text-sm">
                                         <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
                                         <span>{dest.rating}</span>
@@ -320,7 +321,7 @@ export function Explore() {
 
                                 <div className="p-6 space-y-3">
                                     <h4 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-1">{dest.title}</h4>
-                                    <p className="text-sm text-gray-550 dark:text-gray-400 line-clamp-2">{dest.description}</p>
+                                    <p className="text-sm text-gray-550 dark:text-gray-400 line-clamp-2">{sanitizeText(dest.description)}</p>
                                 </div>
                             </div>
 

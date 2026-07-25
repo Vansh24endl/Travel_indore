@@ -356,7 +356,7 @@ export async function listReviewsForDestination(destinationId: string) {
             fullname: (r.userId as any).fullname,
             profileImage: (r.userId as any).profileImage
         } : undefined,
-        likes: r.likes ? r.likes.map((id: any) => id.toString()) : []
+        likes: r.likes ? (r.likes as unknown as any[]).map((id: any) => id.toString()) : []
     }))
 }
 
@@ -409,7 +409,7 @@ export async function toggleFavoriteDestination(userId: string, destinationId: s
 
     const destObjId = new mongoose.Types.ObjectId(destinationId)
     const saved = user.savedDestinations ? [...user.savedDestinations] : []
-    const idx = saved.findIndex(id => id.toString() === destinationId)
+    const idx = saved.findIndex((id: any) => id.toString() === destinationId)
 
     if (idx > -1) {
         saved.splice(idx, 1)
@@ -417,10 +417,10 @@ export async function toggleFavoriteDestination(userId: string, destinationId: s
         saved.push(destObjId)
     }
 
-    user.savedDestinations = saved
+    user.savedDestinations = saved as any
     user.markModified('savedDestinations')
     await user.save()
-    return saved.map(id => id.toString())
+    return saved.map((id: any) => id.toString())
 }
 
 export async function getFavoriteDestinations(userId: string) {
@@ -428,7 +428,7 @@ export async function getFavoriteDestinations(userId: string) {
     const user = await UserModel.findById(userId).populate('savedDestinations')
     if (!user) throw new Error('User not found')
     const list = user.savedDestinations || []
-    return list.filter(item => item !== null)
+    return list.filter((item: any) => item !== null)
 }
 
 export async function updateReview(reviewId: string, userId: string, rating: number, comment: string) {
@@ -489,17 +489,16 @@ export async function toggleReviewLike(reviewId: string, userId: string) {
     if (!review) throw new Error('Review not found')
 
     const userObjId = new mongoose.Types.ObjectId(userId)
-    if (!review.likes) {
-        review.likes = []
-    }
-    const idx = review.likes.findIndex(id => id.toString() === userId)
+    const likesArray: any[] = review.likes ? (review.likes as unknown as any[]) : []
+    const idx = likesArray.findIndex((id: any) => id.toString() === userId)
 
     if (idx > -1) {
-        review.likes.splice(idx, 1)
+        likesArray.splice(idx, 1)
     } else {
-        review.likes.push(userObjId)
+        likesArray.push(userObjId)
     }
 
+    review.likes = likesArray as any
     await review.save()
-    return review.likes.map(id => id.toString())
+    return likesArray.map((id: any) => id.toString())
 }

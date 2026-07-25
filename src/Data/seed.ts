@@ -87,6 +87,23 @@ const initialDestinations: Partial<Destination>[] = [
         openingHours: '06:00 AM - 06:00 PM',
         ticketPrice: 0,
         active: true
+    },
+    {
+        title: 'Mumbai Wada Pav',
+        description: 'Authentic and crispy vada pav with spicy garlic chutney, giving the authentic Mumbai taste in Indore street food culture.',
+        category: 'food',
+        images: [
+            'https://images.unsplash.com/photo-1626132647523-66f5bf380027?w=1080',
+            'https://images.unsplash.com/photo-1601050690597-df056fb4ce78?w=1080'
+        ],
+        rating: 4.8,
+        reviewsCount: 1940,
+        location: 'Chappan Dukan, Indore',
+        latitude: 22.7248,
+        longitude: 75.8842,
+        openingHours: '10:00 AM - 10:30 PM',
+        ticketPrice: 0,
+        active: true
     }
 ]
 

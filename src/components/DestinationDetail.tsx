@@ -9,6 +9,12 @@ import { toast } from 'sonner'
 import Card from './ui/Card'
 import Loader from './ui/Loader'
 import Button from './ui/Button'
+import ImageWithFallback from './ui/ImageWithFallback'
+
+function sanitizeText(text?: string): string {
+    if (!text) return ''
+    return text.replace(/\btesty\b/gi, 'taste')
+}
 
 export function DestinationDetail() {
     const { id } = useParams()
@@ -256,9 +262,10 @@ export function DestinationDetail() {
                     {/* Image Gallery */}
                     <div className="space-y-4">
                         <div className="h-96 md:h-[480px] rounded-3xl overflow-hidden relative shadow-xl">
-                            <img
-                                src={destination.images[activeImageIdx] || 'https://images.unsplash.com/photo-1721572321875-2610e9e83d55?w=1080'}
+                            <ImageWithFallback
+                                src={destination.images?.[activeImageIdx]}
                                 alt={destination.title}
+                                category={destination.category}
                                 className="w-full h-full object-cover"
                             />
                             <div className="absolute top-6 left-6 bg-indigo-600/90 backdrop-blur-md text-white font-bold text-xs px-4 py-2 rounded-xl uppercase tracking-wider">
@@ -277,7 +284,7 @@ export function DestinationDetail() {
                                             activeImageIdx === idx ? 'border-indigo-600 scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'
                                         }`}
                                     >
-                                        <img src={img} alt="" className="w-full h-full object-cover" />
+                                        <ImageWithFallback src={img} alt="" category={destination.category} className="w-full h-full object-cover" />
                                     </button>
                                 ))}
                             </div>
@@ -315,7 +322,7 @@ export function DestinationDetail() {
 
                         <div className="space-y-4 border-t border-gray-100 dark:border-gray-800 pt-6">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white">About the Destination</h3>
-                            <p className="text-gray-650 dark:text-gray-300 leading-relaxed text-sm">{destination.description}</p>
+                            <p className="text-gray-650 dark:text-gray-300 leading-relaxed text-sm">{sanitizeText(destination.description)}</p>
                         </div>
 
                         {destination.imageDescription && (

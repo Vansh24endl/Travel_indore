@@ -54,13 +54,13 @@ export const NetworkStatusIndicator: React.FC = () => {
       opacity: 1, 
       y: 0, 
       scale: 1,
-      transition: { type: 'spring', damping: 25, stiffness: 200 }
+      transition: { type: 'spring' as const, damping: 25, stiffness: 200 }
     },
     exit: { 
       opacity: 0, 
       y: 30, 
       scale: 0.95,
-      transition: { duration: 0.25, ease: 'easeOut' }
+      transition: { duration: 0.25, ease: 'easeOut' as const }
     }
   }
 
