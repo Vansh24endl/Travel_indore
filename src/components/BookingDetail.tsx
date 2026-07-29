@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import Card from './ui/Card'
 import Loader from './ui/Loader'
 import Button from './ui/Button'
+import { getCategoryReceiptTitle, getCategoryPriceLabel, getCategoryVisitorLabel } from '@/lib/categoryHelpers'
 
 // Self-contained dynamic SVG QR Code Component
 function QRCode({ value }: { value: string }) {
@@ -190,22 +191,24 @@ export function BookingDetail() {
             </div>
 
             {/* Ticket Card */}
-            <div className="print-card-wrapper bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden text-slate-800 dark:text-slate-200">
+            <div className="print-card-wrapper bg-white dark:bg-gray-850 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-xl relative overflow-hidden text-slate-800 dark:text-slate-200 text-left">
                 {/* Visual Stamp */}
-                <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full border-4 border-indigo-600/5 flex items-center justify-center select-none rotate-12 pointer-events-none">
-                    <span className="text-indigo-600/5 dark:text-indigo-400/5 font-black text-lg tracking-widest uppercase">Verified Ticket</span>
+                <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full border-4 border-indigo-600/10 flex items-center justify-center select-none rotate-12 pointer-events-none">
+                    <span className="text-indigo-600/15 dark:text-indigo-400/15 font-black text-sm tracking-widest uppercase">Verified Pass</span>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6 text-left">
                     {/* Header */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-gray-150 dark:border-gray-800">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+                            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
                                 <Compass className="w-5 h-5 text-white" />
                             </div>
-                            <div>
-                                <h3 className="font-black text-lg text-gray-900 dark:text-white">Smart Indore Tour Ticket</h3>
-                                <p className="text-xs text-gray-450 dark:text-gray-400">Ticket Reference: #{shortTicketId}</p>
+                            <div className="text-left">
+                                <h3 className="font-black text-lg text-gray-900 dark:text-white">
+                                    {getCategoryReceiptTitle(booking.destination?.category)}
+                                </h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Pass Reference: #{shortTicketId}</p>
                             </div>
                         </div>
                         <span className={`px-3.5 py-1.5 text-xs font-bold rounded-xl uppercase tracking-wider ${
@@ -220,51 +223,53 @@ export function BookingDetail() {
                     </div>
 
                     {/* Destination Details */}
-                    <div className="flex flex-col sm:flex-row gap-6 pb-6 border-b border-gray-150 dark:border-gray-800">
+                    <div className="flex flex-col sm:flex-row gap-6 pb-6 border-b border-gray-150 dark:border-gray-800 text-left">
                         <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
                             {booking.destination?.images?.[0] ? (
-                                <img src={booking.destination.images[0]} alt={booking.destination.title} className="w-full h-full object-cover animate-fade-in" />
+                                <img src={booking.destination.images[0]} alt={booking.destination.title} className="w-full h-full object-cover" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400"><Compass className="text-gray-405" /></div>
+                                <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400"><Compass className="text-gray-400" /></div>
                             )}
                         </div>
-                        <div className="space-y-1.5 flex-1">
-                            <h4 className="font-extrabold text-xl text-gray-900 dark:text-white">{booking.destination?.title || 'Attraction Tour'}</h4>
-                            <p className="text-xs text-gray-550 dark:text-gray-405 leading-relaxed line-clamp-2">{booking.destination?.description || 'Explore the iconic landscapes and heritage of Indore.'}</p>
-                            <div className="flex items-center gap-1.5 text-gray-450 dark:text-gray-400 text-xs pt-1">
-                                <MapPin className="w-4 h-4 text-indigo-500" />
+                        <div className="space-y-1.5 flex-1 text-left">
+                            <h4 className="font-extrabold text-xl text-gray-900 dark:text-white">{booking.destination?.title || 'Attraction Visit'}</h4>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-2">{booking.destination?.description || 'Explore the iconic spots of Indore.'}</p>
+                            <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 text-xs pt-1">
+                                <MapPin className="w-4 h-4 text-indigo-500 flex-shrink-0" />
                                 <span>{booking.destination?.location || 'Indore, MP, India'}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Specifications Grid */}
-                    <div className="grid grid-cols-2 gap-6 py-2">
-                        <div className="space-y-1">
-                            <span className="text-[10px] text-gray-450 dark:text-gray-400 font-bold uppercase tracking-wider">Scheduled Tour Date</span>
-                            <div className="flex items-center gap-2 text-gray-850 dark:text-gray-250 font-bold text-sm">
-                                <Calendar className="w-4 h-4 text-indigo-500" />
+                    <div className="grid grid-cols-2 gap-6 py-2 text-left">
+                        <div className="space-y-1 text-left">
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">Scheduled Visit Date</span>
+                            <div className="flex items-center gap-2 text-gray-900 dark:text-white font-bold text-sm">
+                                <Calendar className="w-4 h-4 text-indigo-500 flex-shrink-0" />
                                 <span>{booking.bookingDate}</span>
                             </div>
                         </div>
-                        <div className="space-y-1">
-                            <span className="text-[10px] text-gray-450 dark:text-gray-400 font-bold uppercase tracking-wider">Total Travelers</span>
-                            <div className="flex items-center gap-2 text-gray-850 dark:text-gray-250 font-bold text-sm">
-                                <Users className="w-4 h-4 text-indigo-500" />
-                                <span>{booking.numberOfPersons} Passenger(s)</span>
+                        <div className="space-y-1 text-left">
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
+                                Total {getCategoryVisitorLabel(booking.destination?.category).replace(' Count', '')}
+                            </span>
+                            <div className="flex items-center gap-2 text-gray-900 dark:text-white font-bold text-sm">
+                                <Users className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                                <span>{booking.numberOfPersons} Guest(s)</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Receipt Cost details */}
-                    <div className="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-2">
-                        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-450">
-                            <span>Base entry fee</span>
-                            <span>₹{booking.destination?.ticketPrice || 0} per person</span>
+                    <div className="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-150 dark:border-gray-800 space-y-2 text-left">
+                        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-300 font-medium">
+                            <span>{getCategoryPriceLabel(booking.destination?.category, booking.destination?.ticketPrice)}</span>
+                            <span>{booking.destination?.ticketPrice === 0 ? 'Free' : `₹${booking.destination?.ticketPrice || 0} per person`}</span>
                         </div>
-                        <div className="flex justify-between font-black text-lg text-gray-900 dark:text-white border-t border-gray-200/50 dark:border-gray-700/50 pt-2.5">
-                            <span>Total Ticket Price</span>
-                            <span>₹{booking.totalAmount}</span>
+                        <div className="flex justify-between font-black text-lg text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700/60 pt-2.5">
+                            <span>Total Amount</span>
+                            <span className="text-indigo-600 dark:text-indigo-400">₹{booking.totalAmount}</span>
                         </div>
                     </div>
 
@@ -277,19 +282,19 @@ export function BookingDetail() {
 
                     {/* QR Code and Instructions Block */}
                     <div className="pt-2 flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-                        <div className="space-y-2 max-w-sm">
-                            <div className="flex items-center justify-center md:justify-start gap-1.5 text-emerald-600 dark:text-emerald-400">
-                                <CheckCircle2 className="w-4 h-4" />
-                                <span className="text-xs font-bold uppercase tracking-wider">Valid Ticket & Entry Pass</span>
+                        <div className="space-y-2 max-w-sm text-left">
+                            <div className="flex items-center justify-start gap-1.5 text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                                <span className="text-xs font-bold uppercase tracking-wider">Valid Digital Visit Pass</span>
                             </div>
-                            <h5 className="font-bold text-sm text-gray-900 dark:text-white">Important Instructions</h5>
-                            <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
-                                Present this digital pass with QR Code at the ticket entry counter. Valid only for the date specified above. Follow eco-tourism clean guidelines.
+                            <h5 className="font-bold text-sm text-gray-900 dark:text-white">Important Visit Instructions</h5>
+                            <p className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed">
+                                Present this digital pass or QR Code at entry. Valid for the scheduled visit date. Please support local Indore culture and cleanliness guidelines.
                             </p>
                         </div>
                         
                         {/* Dynamic QR Code Render */}
-                        <div className="flex flex-col items-center gap-1">
+                        <div className="flex flex-col items-center gap-1 flex-shrink-0">
                             <QRCode value={ticketIdStr} />
                             <span className="text-[9px] font-mono text-gray-400 uppercase tracking-widest">{shortTicketId}</span>
                         </div>
@@ -301,11 +306,11 @@ export function BookingDetail() {
                             <Button
                                 onClick={() => cancelMutation.mutate()}
                                 variant="outline"
-                                className="w-full text-rose-500 border-rose-200 dark:border-rose-800 hover:border-transparent hover:bg-rose-55 rounded-2xl font-bold transition-all duration-300"
+                                className="w-full text-rose-500 border-rose-200 dark:border-rose-800 hover:border-transparent hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-2xl font-bold transition-all duration-300 py-3"
                                 isLoading={cancelMutation.isPending}
                             >
                                 <XCircle className="w-4 h-4 mr-2" />
-                                <span>Cancel Travel Ticket</span>
+                                <span>Cancel Visit Pass</span>
                             </Button>
                         </div>
                     )}

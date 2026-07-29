@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Send, Bot, User, Compass, HelpCircle } from 'lucide-react'
+import { Sparkles, Send, Bot, User, Compass, HelpCircle, MapPin, Calendar, Clock, ArrowRight } from 'lucide-react'
 import Card from './ui/Card'
 import Button from './ui/Button'
 import api from '@/services/api'
+import { Link } from 'react-router'
 
 interface Place {
     name: string
@@ -28,7 +29,7 @@ function formatMessageText(text: string) {
         if (cleanLine.startsWith('###')) {
             const headingText = cleanLine.replace(/^###\s*/, '')
             return (
-                <span key={lineIdx} className="block font-extrabold text-base text-indigo-700 dark:text-indigo-400 mb-3 mt-1">
+                <span key={lineIdx} className="block font-black text-base font-heading text-indigo-600 dark:text-indigo-400 mb-3 mt-2">
                     {headingText}
                 </span>
             )
@@ -50,7 +51,7 @@ function formatMessageText(text: string) {
                 parts.push(cleanLine.substring(index, match.index))
             }
             parts.push(
-                <strong key={match.index} className="font-extrabold text-gray-950 dark:text-white">
+                <strong key={match.index} className="font-extrabold text-slate-900 dark:text-white">
                     {match[1]}
                 </strong>
             )
@@ -64,14 +65,14 @@ function formatMessageText(text: string) {
         if (isBullet) {
             return (
                 <span key={lineIdx} className="flex items-start gap-2 mb-2 pl-1">
-                    <span className="text-indigo-500 mt-1 flex-shrink-0">•</span>
-                    <span className="text-gray-750 dark:text-gray-300 text-sm leading-relaxed">{parts}</span>
+                    <span className="text-indigo-500 font-bold mt-0.5 flex-shrink-0">•</span>
+                    <span className="text-slate-700 dark:text-slate-200 text-xs sm:text-sm leading-relaxed">{parts}</span>
                 </span>
             )
         }
 
         return (
-            <span key={lineIdx} className="block text-gray-750 dark:text-gray-300 text-sm leading-relaxed mb-2">
+            <span key={lineIdx} className="block text-slate-700 dark:text-slate-200 text-xs sm:text-sm leading-relaxed mb-2">
                 {parts}
             </span>
         )
@@ -79,15 +80,28 @@ function formatMessageText(text: string) {
 }
 
 export function AIAssistant() {
+    const messagesEndRef = useRef<HTMLDivElement>(null)
     const [messages, setMessages] = useState<Message[]>([
         {
             id: 1,
             sender: 'bot',
-            text: 'Hello! I am your Indore Travel AI Assistant. 🌟\n\nI can help you plan your budget, suggest the best street food spots, design a 1-day heritage walkthrough, or create a weekend trip itinerary. How can I help you explore Indore today?'
+            text: 'Hello! I am your Indore AI Travel Copilot. 🌟\n\nAsk me for custom 1-day travel itineraries, local street food recommendations at Chappan & Sarafa, heritage walks around Rajwada Palace, or romantic evening spots!'
         }
     ])
     const [inputText, setInputText] = useState('')
     const [isTyping, setIsTyping] = useState(false)
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, [messages, isTyping])
+
+    const quickChips = [
+        { label: '🏛 Heritage Walk', prompt: 'Plan a 1-day heritage walk tour in Indore starting from Rajwada Palace.' },
+        { label: '🍴 Street Food Tour', prompt: 'What are the top must-try street foods at Chappan Dukan and Sarafa Bazaar?' },
+        { label: '☔ Rainy Day Spots', prompt: 'Suggest the best places to visit in Indore on a rainy day.' },
+        { label: '❤️ Couple Trip', prompt: 'Recommend a romantic 1-day couple itinerary with scenic sunset views in Indore.' },
+        { label: '👨‍👩‍👧 Family Outing', prompt: 'Design a family friendly weekend plan with parks and food spots.' },
+    ]
 
     const handleSend = async (textToSend: string) => {
         if (!textToSend.trim()) return
@@ -109,7 +123,7 @@ export function AIAssistant() {
                     sender: 'bot',
                     text: res.data.message,
                     places: res.data.places,
-                    isItinerary: res.data.extracted?.intent === 'itinerary'
+                    isItinerary: res.data.extracted?.intent === 'itinerary' || textToSend.toLowerCase().includes('itinerary') || textToSend.toLowerCase().includes('plan')
                 }
                 setMessages(prev => [...prev, botMsg])
             } else {
@@ -119,7 +133,7 @@ export function AIAssistant() {
             const botMsg: Message = {
                 id: Date.now() + 1,
                 sender: 'bot',
-                text: 'Sorry, I encountered an issue connecting to the AI travel service. Please check your network or try again later.'
+                text: 'Sorry, I encountered an issue connecting to the AI travel service. Please try asking again!'
             }
             setMessages(prev => [...prev, botMsg])
         } finally {
@@ -128,165 +142,152 @@ export function AIAssistant() {
     }
 
     return (
-        <div className="space-y-8 font-sans pb-16 h-[calc(100vh-140px)] flex flex-col justify-between">
+        <div className="space-y-6 font-sans pb-16 h-[calc(100vh-140px)] flex flex-col justify-between text-left">
             {/* Header */}
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+            <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
                     <Sparkles className="w-6 h-6 animate-pulse" />
                 </div>
                 <div>
-                    <h2 className="text-3xl font-black text-gray-900 dark:text-white">AI Travel Assistant</h2>
-                    <p className="text-gray-550 dark:text-gray-400 text-sm">Ask questions, get travel recommendations, or plan custom itineraries</p>
+                    <h2 className="text-2xl sm:text-3xl font-black font-heading text-slate-900 dark:text-white">AI Travel Copilot</h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm">Personalized itineraries, food guides & Indore travel advice</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
-                {/* Suggestions sidebar */}
-                <div className="hidden lg:block space-y-4">
-                    <Card hoverable={false} className="space-y-4">
-                        <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-800">
-                            <HelpCircle className="w-4 h-4 text-indigo-500" />
-                            <h4 className="font-bold text-sm text-gray-900 dark:text-white">Quick Suggestions</h4>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <button
-                                onClick={() => handleSend('Plan a 1-day heritage tour')}
-                                className="w-full text-left p-3 rounded-xl bg-gray-50 dark:bg-gray-850 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-indigo-100"
-                            >
-                                🏛️ 1-Day Heritage Tour
-                            </button>
-                            <button
-                                onClick={() => handleSend('Tell me about street food trail')}
-                                className="w-full text-left p-3 rounded-xl bg-gray-50 dark:bg-gray-850 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-indigo-100"
-                            >
-                                😋 Food trail (Sarafa & Chappan)
-                            </button>
-                            <button
-                                onClick={() => handleSend('Plan a spiritual walkthrough')}
-                                className="w-full text-left p-3 rounded-xl bg-gray-50 dark:bg-gray-850 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-indigo-100"
-                            >
-                                🛕 Spiritual / Temple Visit
-                            </button>
-                            <button
-                                onClick={() => handleSend('What is the travel budget per day?')}
-                                className="w-full text-left p-3 rounded-xl bg-gray-50 dark:bg-gray-850 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 text-xs font-bold text-gray-700 dark:text-gray-300 transition-all border border-transparent hover:border-indigo-100"
-                            >
-                                💰 Budget & Cost Planner
-                            </button>
-                        </div>
-                    </Card>
-                </div>
+            {/* Quick Prompt Chips Banner */}
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {quickChips.map((chip, idx) => (
+                    <button
+                        key={idx}
+                        onClick={() => handleSend(chip.prompt)}
+                        className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl whitespace-nowrap transition-all hover:scale-105 shadow-sm cursor-pointer"
+                    >
+                        {chip.label}
+                    </button>
+                ))}
+            </div>
 
-                <div className="lg:col-span-3 flex flex-col justify-between h-full bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden shadow-xl">
-                    <div className="flex-1 overflow-y-auto p-6 space-y-4 max-h-[50vh] min-h-[30vh]">
-                        <AnimatePresence>
-                            {messages.map(msg => (
-                                <motion.div
-                                    key={msg.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className={`flex items-start gap-3.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                                >
-                                    {msg.sender === 'bot' && (
-                                        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0">
-                                            <Bot className="w-4 h-4" />
-                                        </div>
-                                    )}
-
-                                    <div className={`p-4 rounded-2xl max-w-[85%] text-sm leading-relaxed ${
-                                        msg.sender === 'user'
-                                            ? 'bg-indigo-600 text-white rounded-tr-none whitespace-pre-line'
-                                            : msg.isItinerary
-                                            ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-900/50 text-gray-800 dark:text-gray-200 rounded-tl-none font-medium'
-                                            : 'bg-gray-50 dark:bg-gray-800 text-gray-800 dark:text-gray-250 rounded-tl-none'
-                                    }`}>
-                                        {formatMessageText(msg.text)}
-                                        {msg.places && msg.places.length > 0 && (
-                                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-200/50 dark:border-gray-700/50 pt-4">
-                                                {msg.places.map((place, idx) => (
-                                                    <div 
-                                                        key={idx} 
-                                                        className="bg-white dark:bg-gray-850 p-4 rounded-xl border border-gray-150 dark:border-gray-750 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
-                                                    >
-                                                        <div>
-                                                            <div className="flex justify-between items-start gap-2">
-                                                                <h5 className="font-extrabold text-xs text-gray-900 dark:text-white line-clamp-1">{place.name}</h5>
-                                                                <span className="flex items-center gap-0.5 text-amber-500 text-[10px] font-bold bg-amber-50 dark:bg-amber-950/45 px-1.5 py-0.5 rounded-md">
-                                                                    ★ {place.rating}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-[10px] text-gray-550 dark:text-gray-400 mt-1 line-clamp-2">{place.location}</p>
-                                                        </div>
-                                                        <a 
-                                                            href={place.mapUrl} 
-                                                            target="_blank" 
-                                                            rel="noopener noreferrer" 
-                                                            className="mt-3 block text-center bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-extrabold text-[10px] py-1.5 rounded-lg border border-indigo-100/40 transition-colors"
-                                                        >
-                                                            Open in Google Maps
-                                                        </a>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {msg.sender === 'user' && (
-                                        <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 font-bold text-xs">
-                                            ME
-                                        </div>
-                                    )}
-                                </motion.div>
-                            ))}
-
-                            {isTyping && (
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                                        <Bot className="w-4 h-4" />
-                                    </div>
-                                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl flex items-center gap-1">
-                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                    <div className="p-4 border-t border-gray-150/60 dark:border-gray-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-md">
-                        <form
-                            onSubmit={e => {
-                                e.preventDefault()
-                                handleSend(inputText)
-                            }}
-                            className="flex gap-2"
+            {/* Main Chat Grid */}
+            <Card hoverable={false} className="flex-1 overflow-hidden p-0 flex flex-col border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-xl bg-slate-50/50 dark:bg-slate-900/50">
+                {/* Message Scroll Area */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scrollbar-none">
+                    {messages.map((msg) => (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            key={msg.id}
+                            className={`flex gap-3 sm:gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                         >
-                            <input
-                                type="text"
-                                placeholder="Ask about places, food, or budgets..."
-                                value={inputText}
-                                onChange={e => setInputText(e.target.value)}
-                                className="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-gray-900 dark:text-white"
-                            />
-                            <Button type="submit" variant="primary" className="!py-2.5 px-5">
-                                <Send className="w-4 h-4" />
-                            </Button>
-                        </form>
-                    </div>
-                    {/* <div>
-                        import {GoogleGenAi} from "@google/genai";
-                        const ai = new GoogleGenAi({});
-                        async function main(params:type) {
-                            const response = await ai.models.genrateContent({
-                                model: "gemini-3.5-flash",
-                                contents: "Write your thoughts in few words",
-                            })
-                            console.log(responsee.text);
-                        }
-                        await main();
-                    </div> */}
+                            {/* Avatar */}
+                            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md ${
+                                msg.sender === 'user' 
+                                    ? 'bg-gradient-to-tr from-indigo-600 to-purple-600 text-white' 
+                                    : 'bg-indigo-600 text-white'
+                            }`}>
+                                {msg.sender === 'user' ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+                            </div>
+
+                            {/* Bubble Content */}
+                            <div className={`max-w-[85%] sm:max-w-[75%] space-y-3 ${
+                                msg.sender === 'user' ? 'text-right' : 'text-left'
+                            }`}>
+                                <div className={`p-4 sm:p-5 rounded-3xl text-left shadow-sm ${
+                                    msg.sender === 'user'
+                                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-tr-none'
+                                        : 'bg-white dark:bg-slate-850 text-slate-800 dark:text-slate-100 border border-slate-200/60 dark:border-slate-800 rounded-tl-none'
+                                }`}>
+                                    {formatMessageText(msg.text)}
+                                </div>
+
+                                {/* Visual Itinerary Steps Timeline Card */}
+                                {msg.isItinerary && (
+                                    <div className="bg-white dark:bg-slate-850 border border-indigo-200 dark:border-indigo-900/60 p-4 rounded-3xl space-y-3 text-left shadow-md">
+                                        <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-extrabold text-xs uppercase tracking-wider">
+                                            <Calendar className="w-4 h-4" />
+                                            <span>AI Generated Itinerary Timeline</span>
+                                        </div>
+                                        
+                                        <div className="space-y-3 border-l-2 border-indigo-500 pl-4 py-1">
+                                            <div className="relative">
+                                                <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                                                <span className="text-[10px] font-bold text-slate-400">09:00 AM • Morning Walk</span>
+                                                <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">Rajwada Palace & Poha Breakfast</h5>
+                                            </div>
+                                            <div className="relative">
+                                                <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-purple-600" />
+                                                <span className="text-[10px] font-bold text-slate-400">01:30 PM • Lunch & Shopping</span>
+                                                <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">Chappan Dukan Food Street</h5>
+                                            </div>
+                                            <div className="relative">
+                                                <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-rose-600" />
+                                                <span className="text-[10px] font-bold text-slate-400">08:00 PM • Night Market</span>
+                                                <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">Sarafa Bazaar Street Food</h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Recommended Places Grid embedded in bot response */}
+                                {msg.places && msg.places.length > 0 && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-left">
+                                        {msg.places.map((place, pIdx) => (
+                                            <div key={pIdx} className="p-3 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1 shadow-sm">
+                                                <h5 className="font-bold text-xs text-slate-900 dark:text-white truncate">{place.name}</h5>
+                                                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                                                    <span>📍 {place.location}</span>
+                                                    <span className="text-amber-500 font-bold">★ {place.rating}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    ))}
+
+                    {/* Typing Animation Loader */}
+                    {isTyping && (
+                        <div className="flex gap-3 items-center">
+                            <div className="w-9 h-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+                                <Bot className="w-5 h-5 animate-spin-slow" />
+                            </div>
+                            <div className="p-4 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-3xl rounded-tl-none flex items-center gap-1.5 text-xs text-slate-500 font-bold">
+                                <span>AI Copilot is crafting your travel answer</span>
+                                <span className="animate-bounce">•</span>
+                                <span className="animate-bounce delay-100">•</span>
+                                <span className="animate-bounce delay-200">•</span>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
                 </div>
-            </div>
+
+                {/* Input Controls Bar */}
+                <div className="p-4 bg-white dark:bg-slate-850 border-t border-slate-200/80 dark:border-slate-800">
+                    <form
+                        onSubmit={e => {
+                            e.preventDefault()
+                            handleSend(inputText)
+                        }}
+                        className="flex items-center gap-3"
+                    >
+                        <input
+                            type="text"
+                            value={inputText}
+                            onChange={e => setInputText(e.target.value)}
+                            placeholder="Ask AI Copilot for 1-day tours, food recommendations, or temple visits..."
+                            className="flex-1 px-5 py-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <button
+                            type="submit"
+                            disabled={!inputText.trim() || isTyping}
+                            className="p-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl shadow-md disabled:opacity-50 transition-all cursor-pointer"
+                        >
+                            <Send className="w-4 h-4" />
+                        </button>
+                    </form>
+                </div>
+            </Card>
         </div>
     )
 }

@@ -3,22 +3,42 @@ import { Link } from 'react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/services/api'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Star, MapPin, SlidersHorizontal, Compass, Plus } from 'lucide-react'
+import { Search, Star, MapPin, SlidersHorizontal, Compass, Plus, Heart, Clock, Sun, Sparkles, Filter, Check, Image as ImageIcon, Upload, FolderPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import Card from './ui/Card'
 import Loader from './ui/Loader'
 import EmptyState from './ui/EmptyState'
 import Modal from './ui/Modal'
 import Button from './ui/Button'
+import Skeleton from './ui/Skeleton'
 import ImageWithFallback from './ui/ImageWithFallback'
+import { 
+    getCategoryFormattedPrice, 
+    getCategoryPriceLabel, 
+    getCategoryActionLabel, 
+    getCategoryBadgeStyle 
+} from '@/lib/categoryHelpers'
+import { useAuth } from '@/hooks/useAuth'
 
 function sanitizeText(text?: string): string {
     if (!text) return ''
     return text.replace(/\btesty\b/gi, 'taste')
 }
 
+// Preset gallery images for quick spot creation
+const PRESET_GALLERY_IMAGES = [
+    { title: 'Rajwada Palace', category: 'heritage', url: 'https://images.unsplash.com/photo-1599839575945-a9e5af0c3fa5?auto=format&fit=crop&w=800&q=80' },
+    { title: 'Chappan Dukan Street', category: 'food', url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80' },
+    { title: 'Sarafa Bazaar Night', category: 'food', url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80' },
+    { title: 'Ralamandal Sanctuary', category: 'nature', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80' },
+    { title: 'Khajrana Temple', category: 'spiritual', url: 'https://images.unsplash.com/photo-1561361513-2d000a50f0dc?auto=format&fit=crop&w=800&q=80' },
+    { title: 'Phoenix Citadel', category: 'shopping', url: 'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=800&q=80' },
+    { title: 'Gulawat Lotus Lake', category: 'nature', url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80' }
+]
+
 export function Explore() {
     const queryClient = useQueryClient()
+    const { user } = useAuth()
     const [searchTerm, setSearchTerm] = useState('')
     const [selectedCategory, setSelectedCategory] = useState<string>('all')
     const [maxPrice, setMaxPrice] = useState<number>(500)
@@ -34,12 +54,35 @@ export function Explore() {
     const [imagesStr, setImagesStr] = useState('')
     const [imageDescription, setImageDescription] = useState('')
     const [location, setLocation] = useState('')
-    const [latitude, setLatitude] = useState<number | ''>(22.7187) // Default Indore Coordinates
+    const [latitude, setLatitude] = useState<number | ''>(22.7187)
     const [longitude, setLongitude] = useState<number | ''>(75.8578)
     const [openingHours, setOpeningHours] = useState('')
     const [ticketPrice, setTicketPrice] = useState<number | ''>(0)
     const [bestTimeToVisit, setBestTimeToVisit] = useState('')
     const [estimatedVisitDuration, setEstimatedVisitDuration] = useState('')
+
+    // System File Gallery Access Handler
+    const handleDeviceGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files
+        if (!files || files.length === 0) return
+
+        const file = files[0]
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please select a valid image file from gallery')
+            return
+        }
+
+        const reader = new FileReader()
+        reader.onload = (uploadEvent) => {
+            const base64Url = uploadEvent.target?.result as string
+            if (base64Url) {
+                setImagesStr(base64Url)
+                setImageDescription(file.name)
+                toast.success(`Loaded image "${file.name}" from device gallery!`)
+            }
+        }
+        reader.readAsDataURL(file)
+    }
 
     // Fetch destinations
     const { data: destinations = [], isLoading } = useQuery({
@@ -47,6 +90,33 @@ export function Explore() {
         queryFn: async () => {
             const res = await api.get('/api/destinations')
             return res.data.destinations || []
+        }
+    })
+
+    // Fetch profile for saved favorites
+    const { data: profile } = useQuery({
+        queryKey: ['profile'],
+        queryFn: async () => {
+            if (!user) return null
+            const res = await api.get('/api/auth/me')
+            return res.data.user
+        },
+        enabled: !!user
+    })
+
+    // Bookmark Toggle Mutation
+    const favoriteMutation = useMutation({
+        mutationFn: async (destId: string) => {
+            const res = await api.post(`/api/destinations/${destId}/favorite`)
+            return res.data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['profile'] })
+            queryClient.invalidateQueries({ queryKey: ['favoritesList'] })
+            toast.success('Updated saved places!')
+        },
+        onError: () => {
+            toast.error('Failed to update bookmark')
         }
     })
 
@@ -81,49 +151,66 @@ export function Explore() {
 
     const handlePostSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        if (!title.trim() || !description.trim() || !location.trim() || !openingHours.trim() || ticketPrice === '' || latitude === '' || longitude === '') {
-            toast.error('Please fill out all required fields')
+        
+        // Strict Validation Checks
+        if (!title.trim() || title.trim().length < 3) {
+            toast.error('Spot Title must be at least 3 characters long')
+            return
+        }
+        if (!description.trim() || description.trim().length < 10) {
+            toast.error('Description must be at least 10 characters long')
+            return
+        }
+        if (!location.trim()) {
+            toast.error('Please enter street / location area')
+            return
+        }
+        if (!openingHours.trim()) {
+            toast.error('Please enter opening hours / timings')
+            return
+        }
+        if (ticketPrice === '' || Number(ticketPrice) < 0) {
+            toast.error('Please enter a valid ticket price (0 or greater)')
             return
         }
 
         const imagesArray = imagesStr.split(',').map(s => s.trim()).filter(Boolean)
         if (imagesArray.length === 0) {
-            toast.error('Please provide at least one valid image URL')
+            toast.error('Please select a photo from your device gallery, presets, or URL')
+            return
+        }
+
+        // Validate URL / Base64 syntax
+        const invalidUrls = imagesArray.filter(url => !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:image/'))
+        if (invalidUrls.length > 0) {
+            toast.error('Image must be uploaded from gallery or be a valid http/https URL')
             return
         }
 
         addLocationMutation.mutate({
-            title,
-            description,
+            title: title.trim(),
+            description: description.trim(),
             category,
             images: imagesArray,
-            imageDescription,
-            location,
-            latitude: Number(latitude),
-            longitude: Number(longitude),
-            openingHours,
+            imageDescription: imageDescription.trim() || title.trim(),
+            location: location.trim(),
+            latitude: Number(latitude) || 22.7187,
+            longitude: Number(longitude) || 75.8578,
+            openingHours: openingHours.trim(),
             ticketPrice: Number(ticketPrice),
             bestTimeToVisit: bestTimeToVisit.trim() || 'October to March',
             estimatedVisitDuration: estimatedVisitDuration.trim() || '2 hours'
         })
     }
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <Loader size="lg" />
-            </div>
-        )
-    }
-
-    // Categories list
+    // Categories list with emojis
     const categories = [
-        { id: 'all', label: 'All Places' },
-        { id: 'heritage', label: 'Heritage' },
-        { id: 'food', label: 'Food Street' },
-        { id: 'spiritual', label: 'Spiritual' },
-        { id: 'nature', label: 'Nature/Parks' },
-        { id: 'shopping', label: 'Shopping' }
+        { id: 'all', label: '🎉 All Spots', category: 'all' },
+        { id: 'heritage', label: '🏛 Heritage', category: 'heritage' },
+        { id: 'food', label: '🍴 Food Street', category: 'food' },
+        { id: 'spiritual', label: '🛕 Spiritual', category: 'spiritual' },
+        { id: 'nature', label: '🌳 Nature/Parks', category: 'nature' },
+        { id: 'shopping', label: '🛍 Shopping', category: 'shopping' }
     ]
 
     // Filtering logic
@@ -141,145 +228,162 @@ export function Explore() {
             if (sortBy === 'priceLow') return a.ticketPrice - b.ticketPrice
             if (sortBy === 'priceHigh') return b.ticketPrice - a.ticketPrice
             if (sortBy === 'reviews') return b.reviewsCount - a.reviewsCount
-            return 0 // default
+            return 0
         })
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: { staggerChildren: 0.08 }
+        }
+    }
+
+    const itemVariants = {
+        hidden: { y: 20, opacity: 0 },
+        visible: { y: 0, opacity: 1 }
+    }
+
     return (
-        <div className="space-y-8 font-sans pb-16">
+        <div className="space-y-8 font-sans pb-16 text-left max-w-full overflow-hidden">
             {/* Header section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-black text-gray-900 dark:text-white">Explore Indore</h2>
-                    <p className="text-gray-550 dark:text-gray-400 text-sm">Find historic monuments, delicious street food, and holy temples</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 min-w-0 max-w-full">
+                <div className="space-y-1 min-w-0">
+                    <h2 className="text-3xl sm:text-4xl font-black font-heading text-slate-900 dark:text-white truncate">Explore Indore</h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm break-words">Discover iconic palaces, street food markets, holy shrines & nature parks</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <Button 
                         onClick={() => setIsAddModalOpen(true)}
                         variant="primary"
-                        className="font-bold flex items-center justify-center gap-2 whitespace-nowrap text-xs py-2.5"
+                        className="font-bold flex items-center justify-center gap-2 whitespace-nowrap text-xs py-3 shadow-md shadow-indigo-600/20"
                     >
                         <Plus className="w-4 h-4" />
-                        <span>Post Location</span>
+                        <span>Post Spot</span>
                     </Button>
 
                     {/* Search Bar */}
-                    <div className="relative w-full md:w-80">
-                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <div className="relative w-full sm:w-80">
+                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                         <input
                             type="text"
-                            placeholder="Search attractions..."
+                            placeholder="Search by name or street..."
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white shadow-sm text-sm"
+                            className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white shadow-sm text-sm"
                         />
                     </div>
                 </div>
             </div>
 
-            {/* Category horizontal bar */}
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+            {/* Category Emojis Selector Bar */}
+            <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none max-w-full">
                 {categories.map(cat => (
                     <button
                         key={cat.id}
                         onClick={() => setSelectedCategory(cat.id)}
-                        className={`px-5 py-2.5 rounded-full font-bold text-sm whitespace-nowrap transition-all duration-300 ${
+                        className={`px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 flex items-center gap-2 cursor-pointer ${
                             selectedCategory === cat.id
-                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50'
+                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/25 scale-105'
+                                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-102'
                         }`}
                     >
-                        {cat.label}
+                        <span>{cat.label}</span>
                     </button>
                 ))}
             </div>
 
             {/* Filters Toggler & Sorter */}
-            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-b border-gray-200/60 dark:border-gray-800 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-b border-slate-200/80 dark:border-slate-800/80 py-4 max-w-full">
                 <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 font-bold text-sm text-gray-750 dark:text-gray-355 hover:bg-gray-50"
+                    className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer bg-slate-100 dark:bg-slate-850 px-4 py-2 rounded-xl transition-all"
                 >
-                    <SlidersHorizontal className="w-4 h-4" />
-                    <span>Filters</span>
+                    <Filter className="w-4 h-4" />
+                    <span>{showFilters ? 'Hide Filters' : 'Filter Options'}</span>
                 </button>
 
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold">Sort By</span>
+                <div className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Sort By:</span>
                     <select
                         value={sortBy}
                         onChange={e => setSortBy(e.target.value)}
-                        className="border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 bg-white dark:bg-gray-800 text-sm font-semibold text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl text-slate-700 dark:text-slate-300 font-semibold focus:outline-none cursor-pointer"
                     >
-                        <option value="default">Default</option>
+                        <option value="default">Recommended</option>
                         <option value="rating">Top Rated</option>
                         <option value="priceLow">Price: Low to High</option>
                         <option value="priceHigh">Price: High to Low</option>
-                        <option value="reviews">Popularity</option>
+                        <option value="reviews">Most Reviewed</option>
                     </select>
                 </div>
             </div>
 
-            {/* Expandable Advanced Filters */}
+            {/* Filter controls expandable */}
             <AnimatePresence>
                 {showFilters && (
                     <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden bg-white/40 dark:bg-gray-855/50 backdrop-blur-md rounded-2xl border border-gray-200 dark:border-gray-800 p-6"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
                     >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {/* Price range */}
-                            <div className="space-y-3">
-                                <div className="flex justify-between text-sm font-bold text-gray-800 dark:text-gray-300">
-                                    <span>Max Entry Fee</span>
-                                    <span>{maxPrice === 0 ? 'Free' : `₹${maxPrice}`}</span>
+                        <Card hoverable={false} className="p-6 space-y-4 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                            <div className="grid sm:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex justify-between">
+                                        <span>Max Price / Budget</span>
+                                        <span className="text-indigo-600 font-extrabold">₹{maxPrice}</span>
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1000"
+                                        step="50"
+                                        value={maxPrice}
+                                        onChange={e => setMaxPrice(Number(e.target.value))}
+                                        className="w-full accent-indigo-600 cursor-pointer"
+                                    />
                                 </div>
-                                <input
-                                    type="range"
-                                    min="0"
-                                    max="500"
-                                    step="10"
-                                    value={maxPrice}
-                                    onChange={e => setMaxPrice(Number(e.target.value))}
-                                    className="w-full accent-indigo-600 h-2 bg-gray-200 rounded-lg cursor-pointer"
-                                />
-                                <div className="flex justify-between text-xs text-gray-550">
-                                    <span>₹0</span>
-                                    <span>₹500</span>
-                                </div>
-                            </div>
 
-                            {/* Min Rating */}
-                            <div className="space-y-3">
-                                <label className="block text-sm font-bold text-gray-800 dark:text-gray-300">Minimum Rating</label>
-                                <div className="flex gap-2">
-                                    {[0, 3, 4, 4.5].map(rating => (
-                                        <button
-                                            key={rating}
-                                            onClick={() => setMinRating(rating)}
-                                            className={`px-4 py-2 text-xs font-bold rounded-xl border transition-all duration-300 ${
-                                                minRating === rating
-                                                    ? 'bg-indigo-600 text-white border-transparent'
-                                                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            {rating === 0 ? 'Any' : `${rating}★ & Above`}
-                                        </button>
-                                    ))}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex justify-between">
+                                        <span>Minimum Rating</span>
+                                        <span className="text-amber-500 font-extrabold">{minRating} ★ & above</span>
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="5"
+                                        step="0.5"
+                                        value={minRating}
+                                        onChange={e => setMinRating(Number(e.target.value))}
+                                        className="w-full accent-amber-500 cursor-pointer"
+                                    />
                                 </div>
                             </div>
-                        </div>
+                        </Card>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* Destinations Grid */}
-            {filteredDestinations.length === 0 ? (
+            {/* Grid Container */}
+            {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {[1, 2, 3, 4, 5, 6].map(n => (
+                        <div key={n} className="space-y-4 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 bg-white dark:bg-slate-900">
+                            <Skeleton className="h-56 w-full rounded-2xl" />
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-10 w-full rounded-xl" />
+                        </div>
+                    ))}
+                </div>
+            ) : filteredDestinations.length === 0 ? (
                 <EmptyState
-                    title="No destinations found"
-                    description="Try modifying your filters, search term, or select another category."
+                    title="No spots found"
+                    description="Try modifying your filters, search terms, or category selection."
                     action={
                         <button
                             onClick={() => {
@@ -289,90 +393,148 @@ export function Explore() {
                                 setMinRating(0)
                                 setSortBy('default')
                             }}
-                            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors"
+                            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors cursor-pointer text-xs"
                         >
-                            Reset All Filters
+                            Reset Filters
                         </button>
                     }
                 />
             ) : (
                 <motion.div
-                    layout
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
                 >
-                    {filteredDestinations.map((dest: any) => (
-                        <Card key={dest._id || dest.id} className="overflow-hidden p-0 group flex flex-col justify-between border border-gray-200/40 dark:border-gray-800/80">
-                            <div>
-                                <div className="h-56 overflow-hidden relative">
-                                    <ImageWithFallback
-                                        src={dest.images?.[0]}
-                                        alt={dest.title}
-                                        category={dest.category}
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                    />
-                                    <div className="absolute top-4 right-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 text-amber-500 font-bold text-sm">
-                                        <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-                                        <span>{dest.rating}</span>
+                    {filteredDestinations.map((dest: any) => {
+                        const isFavorited = profile?.savedDestinations?.includes(dest._id || dest.id) || false
+                        
+                        return (
+                            <motion.div variants={itemVariants} key={dest._id || dest.id} className="min-w-0 max-w-full">
+                                <Card hoverable className="overflow-hidden p-0 group flex flex-col justify-between border border-slate-200/70 dark:border-slate-800/80 text-left shadow-md hover:shadow-2xl transition-all duration-300 bg-white dark:bg-slate-900 rounded-3xl min-w-0 max-w-full">
+                                    <div className="min-w-0 max-w-full">
+                                        {/* Image Header Container */}
+                                        <div className="h-60 overflow-hidden relative w-full">
+                                            <ImageWithFallback
+                                                src={dest.images?.[0]}
+                                                alt={dest.title}
+                                                category={dest.category}
+                                                className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700"
+                                            />
+                                            
+                                            {/* Rating Pill */}
+                                            <div className="absolute top-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1 text-amber-500 font-extrabold text-xs shadow-md">
+                                                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                                                <span>{dest.rating}</span>
+                                            </div>
+
+                                            {/* Bookmark Wishlist Button Overlay */}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    if (!user) {
+                                                        toast.error('Please login to bookmark spots')
+                                                        return
+                                                    }
+                                                    favoriteMutation.mutate(dest._id || dest.id)
+                                                }}
+                                                className={`absolute top-4 left-4 p-2.5 rounded-full backdrop-blur-md shadow-md transition-all duration-300 cursor-pointer ${
+                                                    isFavorited 
+                                                        ? 'bg-rose-500 text-white' 
+                                                        : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 hover:text-rose-500'
+                                                }`}
+                                            >
+                                                <Heart className={`w-4 h-4 ${isFavorited ? 'fill-white' : ''}`} />
+                                            </button>
+
+                                            {/* Category Badge Overlay */}
+                                            <span className={`absolute bottom-4 left-4 font-extrabold text-[10px] px-3 py-1 rounded-xl uppercase tracking-wider backdrop-blur-md shadow-md ${getCategoryBadgeStyle(dest.category)}`}>
+                                                {dest.category}
+                                            </span>
+
+                                            {/* Open Today Status */}
+                                            <span className="absolute bottom-4 right-4 bg-emerald-500/90 text-white font-extrabold text-[9px] px-2.5 py-1 rounded-lg uppercase tracking-wider backdrop-blur-md">
+                                                Open Today
+                                            </span>
+                                        </div>
+
+                                        {/* Card Text Content with strict overflow containment */}
+                                        <div className="p-6 space-y-3 text-left min-w-0 max-w-full overflow-hidden break-words">
+                                            <h4 className="text-xl font-bold font-heading text-slate-900 dark:text-white truncate min-w-0 max-w-full group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                                {dest.title}
+                                            </h4>
+                                            
+                                            <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed font-normal break-words overflow-hidden">
+                                                {sanitizeText(dest.description)}
+                                            </p>
+
+                                            {/* Meta specifications (Hours, Location) */}
+                                            <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 pt-1 font-semibold min-w-0 max-w-full overflow-hidden">
+                                                <span className="flex items-center gap-1 flex-shrink-0">
+                                                    <Clock className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                                                    <span className="truncate max-w-[100px]">{dest.openingHours || '10 AM - 8 PM'}</span>
+                                                </span>
+                                                <span className="flex-shrink-0">•</span>
+                                                <span className="flex items-center gap-1 truncate min-w-0 max-w-full">
+                                                    <MapPin className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                                                    <span className="truncate">{dest.location}</span>
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <span className="absolute bottom-4 left-4 bg-indigo-600/90 backdrop-blur-md text-white font-bold text-xs px-3 py-1.5 rounded-xl uppercase tracking-wider">
-                                        {dest.category}
-                                    </span>
-                                </div>
 
-                                <div className="p-6 space-y-3">
-                                    <h4 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-1">{dest.title}</h4>
-                                    <p className="text-sm text-gray-550 dark:text-gray-400 line-clamp-2">{sanitizeText(dest.description)}</p>
-                                </div>
-                            </div>
+                                    {/* Footer Price & CTA Button */}
+                                    <div className="p-6 pt-0 border-t border-slate-150 dark:border-slate-800/80 mt-2 flex items-center justify-between gap-2 min-w-0">
+                                        <div className="flex flex-col text-left min-w-0 flex-1">
+                                            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-400 truncate">
+                                                {getCategoryPriceLabel(dest.category, dest.ticketPrice)}
+                                            </span>
+                                            <span className="font-black text-indigo-600 dark:text-indigo-400 text-sm sm:text-base font-heading truncate">
+                                                {dest.ticketPrice === 0 ? 'Free Entry' : `₹${dest.ticketPrice}`}
+                                            </span>
+                                        </div>
 
-                            <div className="p-6 pt-0 border-t border-gray-150/40 dark:border-gray-800 mt-4 flex items-center justify-between">
-                                <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                    <MapPin className="w-4 h-4 text-indigo-500" />
-                                    <span className="truncate max-w-[120px]">{dest.location}</span>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="font-extrabold text-indigo-650 dark:text-indigo-400 text-base">
-                                        {dest.ticketPrice === 0 ? 'Free' : `₹${dest.ticketPrice}`}
-                                    </span>
-                                    <Link
-                                        to={`/destination/${dest._id || dest.id}`}
-                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-indigo-500/20 transition-all duration-300"
-                                    >
-                                        Details
-                                    </Link>
-                                </div>
-                            </div>
-                        </Card>
-                    ))}
+                                        <Link
+                                            to={`/destination/${dest._id || dest.id}`}
+                                            className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-xs rounded-2xl shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/40 transition-all duration-300 whitespace-nowrap flex-shrink-0"
+                                        >
+                                            {getCategoryActionLabel(dest.category)}
+                                        </Link>
+                                    </div>
+                                </Card>
+                            </motion.div>
+                        )
+                    })}
                 </motion.div>
             )}
 
-            {/* Post Location Modal */}
+            {/* Post Location Modal with System Gallery & Presets */}
             <Modal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 title="Post New Location / Attraction Details"
                 size="lg"
             >
-                <form onSubmit={handlePostSubmit} className="space-y-4 font-sans max-h-[75vh] overflow-y-auto px-1 scrollbar-none">
+                <form onSubmit={handlePostSubmit} className="space-y-5 font-sans max-h-[75vh] overflow-y-auto px-1 scrollbar-none text-left">
                     <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Spot Title *</label>
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Spot Title *</label>
                             <input
                                 type="text"
                                 value={title}
                                 onChange={e => setTitle(e.target.value)}
                                 required
                                 placeholder="e.g. Rajwada Palace"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-850 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                             />
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Category *</label>
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Category *</label>
                             <select
                                 value={category}
                                 onChange={e => setCategory(e.target.value as any)}
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-850 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm cursor-pointer"
+                                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm cursor-pointer"
                             >
                                 <option value="heritage">Heritage</option>
                                 <option value="food">Food Street</option>
@@ -384,144 +546,182 @@ export function Explore() {
                         </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Spot Description *</label>
+                    <div className="space-y-1.5 text-left">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Spot Description *</label>
                         <textarea
                             value={description}
                             onChange={e => setDescription(e.target.value)}
                             required
                             rows={3}
                             placeholder="Provide a brief history or description about the destination..."
-                            className="w-full p-3.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-850 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                            className="w-full p-3.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                         />
                     </div>
 
+                    {/* System Device Gallery File Picker Button */}
+                    <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 space-y-3 text-left">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-extrabold text-xs">
+                                <FolderPlus className="w-4 h-4" />
+                                <span>Upload Photo from System / Device Gallery</span>
+                            </div>
+
+                            <input
+                                id="deviceGalleryInput"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleDeviceGalleryUpload}
+                                className="hidden"
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() => document.getElementById('deviceGalleryInput')?.click()}
+                                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-xs rounded-xl shadow-md hover:scale-105 transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>Choose Local Gallery File</span>
+                            </button>
+                        </div>
+
+                        {imagesStr && imagesStr.startsWith('data:image/') && (
+                            <div className="flex items-center gap-3 pt-2">
+                                <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-indigo-600 shadow-md flex-shrink-0">
+                                    <img src={imagesStr} alt="Uploaded preview" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="text-xs space-y-0.5">
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>Image loaded from system gallery</span>
+                                    </span>
+                                    <p className="text-slate-500 text-[10px]">Ready to post with your spot!</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Interactive Gallery Preset Picker */}
+                    <div className="space-y-2 text-left bg-slate-50 dark:bg-slate-850 p-4 rounded-2xl border border-slate-200 dark:border-slate-750">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <ImageIcon className="w-4 h-4 text-indigo-500" />
+                            <span>Or Choose from Curated Indore Presets</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                            {PRESET_GALLERY_IMAGES.map((preset, pIdx) => {
+                                const isSelected = imagesStr === preset.url
+                                return (
+                                    <button
+                                        type="button"
+                                        key={pIdx}
+                                        onClick={() => {
+                                            setImagesStr(preset.url)
+                                            setImageDescription(preset.title)
+                                            toast.success(`Selected image: ${preset.title}`)
+                                        }}
+                                        className={`relative h-20 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                                            isSelected ? 'border-indigo-600 scale-105 shadow-md ring-2 ring-indigo-500' : 'border-transparent opacity-75 hover:opacity-100'
+                                        }`}
+                                    >
+                                        <img src={preset.url} alt={preset.title} className="w-full h-full object-cover" />
+                                        <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 text-white text-[9px] font-bold p-1 truncate text-center">
+                                            {preset.title}
+                                        </span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+
                     <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Image URLs (comma separated) *</label>
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Image URL / Data *</label>
                             <input
                                 type="text"
                                 value={imagesStr}
                                 onChange={e => setImagesStr(e.target.value)}
                                 required
-                                placeholder="https://example.com/image.jpg"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-855 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                placeholder="Uploaded file or image URL..."
+                                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm truncate"
                             />
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Image Details / Description</label>
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Image Caption / Details</label>
                             <input
                                 type="text"
                                 value={imageDescription}
                                 onChange={e => setImageDescription(e.target.value)}
-                                placeholder="e.g. Front elevation of the palace illuminated at night"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-855 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid sm:grid-cols-3 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Location / Area *</label>
-                            <input
-                                type="text"
-                                value={location}
-                                onChange={e => setLocation(e.target.value)}
-                                required
-                                placeholder="e.g. MG Road, Indore"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-855 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Latitude *</label>
-                            <input
-                                type="number"
-                                step="0.0001"
-                                value={latitude}
-                                onChange={e => setLatitude(e.target.value !== '' ? Number(e.target.value) : '')}
-                                required
-                                placeholder="22.7187"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-855 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Longitude *</label>
-                            <input
-                                type="number"
-                                step="0.0001"
-                                value={longitude}
-                                onChange={e => setLongitude(e.target.value !== '' ? Number(e.target.value) : '')}
-                                required
-                                placeholder="75.8578"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-855 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                placeholder="e.g. Front view of spot"
+                                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                             />
                         </div>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Opening Hours *</label>
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Location Street / Area *</label>
+                            <input
+                                type="text"
+                                value={location}
+                                onChange={e => setLocation(e.target.value)}
+                                required
+                                placeholder="e.g. Rajwada Chowk, Indore"
+                                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Timings / Hours *</label>
                             <input
                                 type="text"
                                 value={openingHours}
                                 onChange={e => setOpeningHours(e.target.value)}
                                 required
                                 placeholder="e.g. 10:00 AM - 05:00 PM"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-855 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Entry Ticket Price (INR) *</label>
-                            <input
-                                type="number"
-                                value={ticketPrice}
-                                onChange={e => setTicketPrice(e.target.value !== '' ? Number(e.target.value) : '')}
-                                required
-                                placeholder="0 for Free entry"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-855 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                             />
                         </div>
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Best Season to Visit</label>
+                    <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Starting Price (₹) *</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={ticketPrice}
+                                onChange={e => setTicketPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                                required
+                                placeholder="0 for Free"
+                                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Best Season</label>
                             <input
                                 type="text"
                                 value={bestTimeToVisit}
                                 onChange={e => setBestTimeToVisit(e.target.value)}
                                 placeholder="e.g. October to March"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-855 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                             />
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-wider">Estimated Tour Duration</label>
+                        <div className="space-y-1.5 text-left">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Estimated Duration</label>
                             <input
                                 type="text"
                                 value={estimatedVisitDuration}
                                 onChange={e => setEstimatedVisitDuration(e.target.value)}
                                 placeholder="e.g. 2 hours"
-                                className="w-full px-4 py-2.5 border border-gray-250 dark:border-gray-700 dark:bg-gray-855 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                             />
                         </div>
                     </div>
 
-                    <div className="pt-4 flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => setIsAddModalOpen(false)}
-                            className="text-xs"
-                        >
+                    <div className="pt-4 flex justify-end gap-3">
+                        <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
                             Cancel
                         </Button>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            isLoading={addLocationMutation.isPending}
-                            className="text-xs"
-                        >
-                            Post Location Details
+                        <Button type="submit" variant="primary" isLoading={addLocationMutation.isPending}>
+                            Submit Spot
                         </Button>
                     </div>
                 </form>
