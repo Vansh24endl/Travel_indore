@@ -61,7 +61,7 @@ export function Explore() {
     const [bestTimeToVisit, setBestTimeToVisit] = useState('')
     const [estimatedVisitDuration, setEstimatedVisitDuration] = useState('')
 
-    // System File Gallery Access Handler
+    // System File Gallery Access Handler with Canvas Auto-Compression
     const handleDeviceGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files
         if (!files || files.length === 0) return
@@ -74,11 +74,48 @@ export function Explore() {
 
         const reader = new FileReader()
         reader.onload = (uploadEvent) => {
-            const base64Url = uploadEvent.target?.result as string
-            if (base64Url) {
-                setImagesStr(base64Url)
-                setImageDescription(file.name)
-                toast.success(`Loaded image "${file.name}" from device gallery!`)
+            const rawBase64 = uploadEvent.target?.result as string
+            if (rawBase64) {
+                // Compress image using Canvas for fast, reliable mobile network upload
+                const img = new Image()
+                img.onload = () => {
+                    const canvas = document.createElement('canvas')
+                    const MAX_WIDTH = 1200
+                    const MAX_HEIGHT = 1200
+                    let width = img.width
+                    let height = img.height
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height = Math.round((height * MAX_WIDTH) / width)
+                            width = MAX_WIDTH
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width = Math.round((width * MAX_HEIGHT) / height)
+                            height = MAX_HEIGHT
+                        }
+                    }
+
+                    canvas.width = width
+                    canvas.height = height
+                    const ctx = canvas.getContext('2d')
+                    if (ctx) {
+                        ctx.drawImage(img, 0, 0, width, height)
+                        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8)
+                        setImagesStr(compressedBase64)
+                        setImageDescription(file.name)
+                        toast.success(`Loaded photo "${file.name}" from gallery!`)
+                    } else {
+                        setImagesStr(rawBase64)
+                        setImageDescription(file.name)
+                    }
+                }
+                img.onerror = () => {
+                    setImagesStr(rawBase64)
+                    setImageDescription(file.name)
+                }
+                img.src = rawBase64
             }
         }
         reader.readAsDataURL(file)
