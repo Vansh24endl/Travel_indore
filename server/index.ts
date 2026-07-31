@@ -581,21 +581,29 @@ app.post('/api/auth/forgot-password', authLimiter, async (req, res) => {
 
         const userExists = await setResetToken(email, otp, expires)
         
+        let emailSent = false
         if (userExists) {
-            await sendOTPEmail(email, otp)
+            try {
+                await sendOTPEmail(email, otp)
+                emailSent = true
+            } catch (emailErr) {
+                console.error('[AUTH] Failed sending OTP email:', emailErr)
+            }
         } else {
             console.log(`[AUTH] Forgot password request for non-registered email: ${email}`)
         }
 
-        // Return a dummy OTP/token if user doesn't exist, to prevent email enumeration,
-        // while allowing the portfolio demo workflow to complete without errors.
+        const isRealSMTP = Boolean((process.env.SMTP_HOST || process.env.EMAIL_USER) && (process.env.SMTP_USER || process.env.EMAIL_USER) && (process.env.SMTP_PASS || process.env.EMAIL_PASS))
         const responseOtp = userExists ? otp : Math.floor(100000 + Math.random() * 900000).toString()
 
         return res.json({
             ok: true,
-            message: 'If the email is registered, an OTP code has been sent.',
-            token: responseOtp,
-            otp: responseOtp
+            message: emailSent 
+                ? 'Verification OTP code has been sent to your email.' 
+                : 'If the email is registered, an OTP code has been sent.',
+            isRealSMTP,
+            // Include token only in demo mode when no real SMTP server is configured
+            ...(isRealSMTP ? {} : { token: responseOtp, otp: responseOtp })
         })
     } catch (error) {
         console.error('[AUTH] Forgot password error:', error)

@@ -5,21 +5,21 @@ let transporter: nodemailer.Transporter | null = null
 async function getTransporter() {
     if (transporter) return transporter
 
-    const host = process.env.SMTP_HOST
+    const user = process.env.SMTP_USER || process.env.EMAIL_USER
+    const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS
+    const host = process.env.SMTP_HOST || (user ? 'smtp.gmail.com' : undefined)
     const port = Number(process.env.SMTP_PORT || 587)
     const secure = process.env.SMTP_SECURE === 'true'
-    const user = process.env.SMTP_USER
-    const pass = process.env.SMTP_PASS
 
     if (host && user && pass) {
-        console.log(`[EMAIL] Configuring SMTP transporter for host: ${host}:${port}`)
+        console.log(`[EMAIL] Configuring SMTP transporter for ${host}:${port} (${user})`)
         transporter = nodemailer.createTransport({
             host,
             port,
-            secure,
+            secure, // false for port 587 with STARTTLS
             auth: {
-                user,
-                pass
+                user: user.trim(),
+                pass: pass.trim().replace(/\s+/g, '') // remove spaces from Gmail App Passwords if any
             }
         })
     } else {
@@ -35,10 +35,13 @@ async function getTransporter() {
 export async function sendOTPEmail(email: string, otp: string) {
     try {
         const mailTransporter = await getTransporter()
-        const isMock = !process.env.SMTP_HOST
+        const user = process.env.SMTP_USER || process.env.EMAIL_USER
+        const isMock = !user
+
+        const fromAddress = process.env.SMTP_FROM || (user ? `"Indore Explorer" <${user}>` : '"Indore Explorer" <noreply@indoreexplorer.com>')
 
         const mailOptions = {
-            from: process.env.SMTP_FROM || '"Indore Explorer" <noreply@indoreexplorer.com>',
+            from: fromAddress,
             to: email.toLowerCase().trim(),
             subject: `${otp} is your verification code for Indore Explorer`,
             html: `
@@ -75,12 +78,12 @@ export async function sendOTPEmail(email: string, otp: string) {
             console.log(`│ [EMAIL SIMULATOR] (SMTP configuration not detected)    │`);
             console.log('└────────────────────────────────────────────────────────┘\n');
         } else {
-            console.log(`[EMAIL] OTP sent successfully to ${email}. Message ID: ${info.messageId}`)
+            console.log(`[EMAIL] OTP sent successfully to ${email}. Message ID: ${info.messageId || 'sent'}`)
         }
 
         return info
     } catch (error) {
         console.error('[EMAIL] Failed to send OTP email:', error)
-        throw new Error('Could not send verification email. Please try again.')
+        throw new Error('Could not send verification email. Please check SMTP settings or try again.')
     }
 }

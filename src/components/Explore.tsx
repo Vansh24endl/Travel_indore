@@ -25,7 +25,7 @@ function sanitizeText(text?: string): string {
     return text.replace(/\btesty\b/gi, 'taste')
 }
 
-// Preset gallery images for quick spot creation
+
 const PRESET_GALLERY_IMAGES = [
     { title: 'Rajwada Palace', category: 'heritage', url: 'https://images.unsplash.com/photo-1599839575945-a9e5af0c3fa5?auto=format&fit=crop&w=800&q=80' },
     { title: 'Chappan Dukan Street', category: 'food', url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80' },
@@ -174,14 +174,23 @@ export function Explore() {
             return
         }
 
-        const imagesArray = imagesStr.split(',').map(s => s.trim()).filter(Boolean)
+        let imagesArray: string[] = []
+        if (imagesStr.trim().startsWith('data:image/')) {
+            imagesArray = [imagesStr.trim()]
+        } else {
+            imagesArray = imagesStr.split(',').map(s => s.trim()).filter(Boolean)
+        }
+
         if (imagesArray.length === 0) {
-            toast.error('Please select a photo from your device gallery, presets, or URL')
+            toast.error('Please select a photo from your gallery or enter a valid image URL')
             return
         }
 
         // Validate URL / Base64 syntax
-        const invalidUrls = imagesArray.filter(url => !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('data:image/'))
+        const invalidUrls = imagesArray.filter(url => {
+            const lower = url.trim().toLowerCase()
+            return !lower.startsWith('http://') && !lower.startsWith('https://') && !lower.startsWith('data:image/')
+        })
         if (invalidUrls.length > 0) {
             toast.error('Image must be uploaded from gallery or be a valid http/https URL')
             return
@@ -598,38 +607,6 @@ export function Explore() {
                                 </div>
                             </div>
                         )}
-                    </div>
-
-                    {/* Interactive Gallery Preset Picker */}
-                    <div className="space-y-2 text-left bg-slate-50 dark:bg-slate-850 p-4 rounded-2xl border border-slate-200 dark:border-slate-750">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                            <ImageIcon className="w-4 h-4 text-indigo-500" />
-                            <span>Or Choose from Curated Indore Presets</span>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                            {PRESET_GALLERY_IMAGES.map((preset, pIdx) => {
-                                const isSelected = imagesStr === preset.url
-                                return (
-                                    <button
-                                        type="button"
-                                        key={pIdx}
-                                        onClick={() => {
-                                            setImagesStr(preset.url)
-                                            setImageDescription(preset.title)
-                                            toast.success(`Selected image: ${preset.title}`)
-                                        }}
-                                        className={`relative h-20 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                                            isSelected ? 'border-indigo-600 scale-105 shadow-md ring-2 ring-indigo-500' : 'border-transparent opacity-75 hover:opacity-100'
-                                        }`}
-                                    >
-                                        <img src={preset.url} alt={preset.title} className="w-full h-full object-cover" />
-                                        <span className="absolute bottom-0 inset-x-0 bg-slate-950/70 text-white text-[9px] font-bold p-1 truncate text-center">
-                                            {preset.title}
-                                        </span>
-                                    </button>
-                                )
-                            })}
-                        </div>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-4">

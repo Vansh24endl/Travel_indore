@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router'
 import { motion } from 'framer-motion'
 import api from '@/services/api'
-import { Compass, Mail, ArrowLeft, Key } from 'lucide-react'
+import { Compass, Mail, ArrowLeft, Key, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
@@ -14,12 +14,15 @@ export function ForgotPassword() {
     const [email, setEmail] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
+    const [isSubmitted, setIsSubmitted] = useState(false)
+    const [isRealSMTP, setIsRealSMTP] = useState(false)
     const [demoToken, setDemoToken] = useState<string | null>(null)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
         setDemoToken(null)
+        setIsSubmitted(false)
 
         const result = forgotSchema.safeParse({ email })
         if (!result.success) {
@@ -32,9 +35,11 @@ export function ForgotPassword() {
             const res = await api.post('/api/auth/forgot-password', { email })
             if (res.data.ok) {
                 toast.success('Verification OTP sent successfully!')
-                // Expose token for portfolio review convenience
-                if (res.data.token) {
-                    setDemoToken(res.data.token)
+                setIsSubmitted(true)
+                setIsRealSMTP(Boolean(res.data.isRealSMTP))
+                const otpCode = res.data.otp || res.data.token
+                if (otpCode) {
+                    setDemoToken(otpCode)
                 }
             }
         } catch (err: any) {
@@ -66,7 +71,7 @@ export function ForgotPassword() {
                 </div>
 
                 <div className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-md shadow-2xl text-white space-y-6">
-                    {!demoToken ? (
+                    {!isSubmitted ? (
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
                                 <label className="block text-sm font-semibold text-gray-300 mb-2">Registered Email Address</label>
@@ -99,17 +104,27 @@ export function ForgotPassword() {
                     ) : (
                         <div className="space-y-4 text-center">
                             <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto text-indigo-400">
-                                <Key className="w-6 h-6 animate-bounce" />
+                                {isRealSMTP ? <CheckCircle2 className="w-6 h-6 text-emerald-400" /> : <Key className="w-6 h-6 animate-bounce" />}
                             </div>
                             <h4 className="font-extrabold text-lg">Verification OTP Sent!</h4>
-                            <p className="text-xs text-gray-400 leading-relaxed">
-                                Under a production environment, an email containing the 6-digit OTP code would be sent to your email. For this demo, you can copy the code below.
-                            </p>
-                            <div className="bg-white/10 p-3 rounded-xl select-all font-mono text-xl font-bold tracking-widest text-indigo-400 border border-white/10 break-all">
-                                {demoToken}
-                            </div>
+                            
+                            {isRealSMTP ? (
+                                <p className="text-xs text-gray-300 leading-relaxed">
+                                    A 6-digit OTP code has been sent to <strong className="text-indigo-300">{email}</strong>. Please check your inbox and enter the code to reset your password.
+                                </p>
+                            ) : (
+                                <>
+                                    <p className="text-xs text-gray-400 leading-relaxed">
+                                        An email containing the 6-digit OTP code is sent to your address when SMTP is configured. For local demo testing, copy the code below:
+                                    </p>
+                                    <div className="bg-white/10 p-3 rounded-xl select-all font-mono text-2xl font-bold tracking-[0.3em] text-indigo-400 border border-white/10">
+                                        {demoToken}
+                                    </div>
+                                </>
+                            )}
+
                             <Link
-                                to={`/reset-password?email=${encodeURIComponent(email)}&otp=${demoToken}`}
+                                to={`/reset-password?email=${encodeURIComponent(email)}${demoToken ? `&otp=${demoToken}` : ''}`}
                                 className="block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-center shadow-lg transition-all"
                             >
                                 Proceed to Reset Password

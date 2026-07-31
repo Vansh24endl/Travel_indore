@@ -7,6 +7,7 @@ import { Users, Compass, Calendar, Star, DollarSign, ArrowRight, ShieldCheck, Tr
 import Card from '../ui/Card'
 import Loader from '../ui/Loader'
 import { ChartAreaInteractive } from './ChartAreaInteractive'
+import { Revenue3DCard } from './Revenue3DCard'
 
 export function AdminDashboard() {
     // Fetch stats
@@ -72,24 +73,8 @@ export function AdminDashboard() {
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Revenue Card */}
-                <Card hoverable={false} className="p-6 flex flex-col justify-between border border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-indigo-900 via-slate-900 to-purple-950 text-white rounded-3xl text-left shadow-xl">
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs text-indigo-300 font-extrabold uppercase tracking-wider">Gross Booking Revenue</span>
-                            <div className="p-2 bg-indigo-500/20 rounded-xl text-indigo-300">
-                                <TrendingUp className="w-4 h-4" />
-                            </div>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-black text-indigo-300">₹</span>
-                            <h3 className="text-4xl font-black font-heading">{stats?.totalRevenue || 0}</h3>
-                        </div>
-                    </div>
-                    <p className="text-xs text-indigo-200/80 mt-6 leading-relaxed">
-                        Calculated from all verified traveler and diner passes booked through the portal.
-                    </p>
-                </Card>
+                {/* Revenue Card with 3D hover & Bus-Car Chase */}
+                <Revenue3DCard totalRevenue={stats?.totalRevenue || 0} />
 
                 {/* Management Quick Links */}
                 <Card hoverable={false} className="p-6 lg:col-span-2 space-y-4 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-3xl text-left shadow-sm">

@@ -88,9 +88,14 @@ export function AdminDestinations() {
             return
         }
 
-        const imagesArray = imagesStr.split(',').map(s => s.trim()).filter(Boolean)
+        let imagesArray: string[] = []
+        if (imagesStr.trim().startsWith('data:image/')) {
+            imagesArray = [imagesStr.trim()]
+        } else {
+            imagesArray = imagesStr.split(',').map(s => s.trim()).filter(Boolean)
+        }
         if (imagesArray.length === 0) {
-            toast.error('Please provide at least one image URL')
+            toast.error('Please provide at least one image URL or gallery image')
             return
         }
 

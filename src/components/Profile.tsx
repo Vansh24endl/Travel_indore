@@ -201,28 +201,102 @@ export function Profile() {
     return (
         <div className="max-w-6xl mx-auto space-y-8 font-sans pb-16 text-left min-w-0 max-w-full">
             
-            {/* GitHub/SaaS Style Profile Banner Header */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900 via-slate-900 to-purple-950 border border-slate-200/40 dark:border-slate-800 shadow-2xl">
-                {/* Banner Graphic Background */}
-                <div className="h-36 sm:h-48 bg-gradient-to-r from-indigo-600/50 via-purple-600/50 to-pink-600/40 w-full relative">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-400/20 via-transparent to-transparent" />
+            {/* Creative 3D Mesh Profile Banner Header */}
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 border border-indigo-500/30 shadow-2xl group"
+            >
+                {/* Dynamic Ambient Light Orbs */}
+                <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-indigo-600/20 blur-[100px] pointer-events-none animate-pulse" />
+                <div className="absolute bottom-0 right-1/4 w-80 h-80 rounded-full bg-purple-600/25 blur-[100px] pointer-events-none" />
+
+                {/* Banner Graphic Background with Animated Grid */}
+                <div className="h-44 sm:h-56 bg-gradient-to-r from-indigo-600/40 via-purple-600/40 to-pink-600/30 w-full relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(129,140,248,0.25),transparent_70%)]" />
+                    {/* Cyber Grid Lines */}
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:32px_32px] opacity-40" />
+                    
+                    {/* Floating Decorative Elements */}
+                    <motion.div 
+                        animate={{ y: [-6, 6, -6], rotate: [0, 5, 0] }}
+                        transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
+                        className="absolute top-4 right-6 hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold shadow-lg"
+                    >
+                        <Sparkles className="w-4 h-4 text-amber-300 animate-spin-slow" />
+                        <span>Indore Travel Ambassador</span>
+                    </motion.div>
                 </div>
 
-                {/* Overlapping User Info Bar */}
-                <div className="px-6 pb-6 pt-0 relative flex flex-col md:flex-row items-center md:items-end justify-between gap-6 -mt-16 sm:-mt-20 text-white">
+                {/* Overlapping User Info & Quick Stats */}
+                <div className="px-6 pb-6 pt-0 relative flex flex-col lg:flex-row lg:items-end justify-between gap-6 -mt-20 sm:-mt-24 text-white">
+                    {/* User Identity & Glowing Avatar */}
                     <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 text-center sm:text-left min-w-0">
-                        <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden border-4 border-slate-900 bg-slate-800 shadow-2xl flex-shrink-0">
-                            <img src={selectedAvatar} alt="" className="w-full h-full object-cover" />
+                        {/* Glowing Avatar Frame */}
+                        <div className="relative group/avatar flex-shrink-0">
+                            <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 blur-sm opacity-80 group-hover/avatar:opacity-100 transition-all duration-300 animate-pulse" />
+                            <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-3xl overflow-hidden border-4 border-slate-950 bg-slate-900 shadow-2xl flex-shrink-0">
+                                <img src={selectedAvatar} alt="" className="w-full h-full object-cover transition-transform duration-300 group-hover/avatar:scale-105" />
+                            </div>
+                            <span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-slate-950 rounded-full shadow-[0_0_8px_#10b981]" title="Active Explorer" />
                         </div>
-                        <div className="space-y-1 pb-1 min-w-0">
-                            <div className="flex items-center justify-center sm:justify-start gap-2 min-w-0">
-                                <h1 className="text-2xl sm:text-3xl font-black font-heading tracking-tight truncate">{user?.fullname}</h1>
-                                <span className="px-2.5 py-0.5 bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[10px] font-bold rounded-md uppercase tracking-wider flex-shrink-0">
+
+                        <div className="space-y-1.5 pb-1 min-w-0">
+                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 min-w-0">
+                                <h1 className="text-2xl sm:text-4xl font-black font-heading tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-indigo-200 drop-shadow">
+                                    {user?.fullname}
+                                </h1>
+                                <span className="px-3 py-1 bg-indigo-500/25 border border-indigo-400/40 text-indigo-300 text-[10px] font-black rounded-lg uppercase tracking-widest shadow-md backdrop-blur-md">
                                     {user?.role}
                                 </span>
                             </div>
-                            <p className="text-xs text-slate-300 font-medium truncate">{user?.email} • {user?.phone || '+91 98765 43210'}</p>
-                            <p className="text-[11px] text-indigo-300 font-semibold">Indore Explorer Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2026'}</p>
+                            
+                            {/* Explorer Rank & Level Pill */}
+                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-semibold text-slate-300 pt-0.5">
+                                <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[11px] font-bold flex items-center gap-1 shadow-sm">
+                                    <span>🌟 Level 5 Indore Legend</span>
+                                </span>
+                                <span className="hidden sm:inline text-slate-500">•</span>
+                                <span className="text-slate-300 font-medium">{user?.email}</span>
+                            </div>
+
+                            <p className="text-[11px] text-indigo-300/90 font-medium pt-0.5">
+                                Indore Explorer Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2026'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Floating Quick Stat Badges inside Banner */}
+                    <div className="grid grid-cols-3 gap-3 w-full lg:w-auto flex-shrink-0 pt-2 lg:pt-0">
+                        <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 p-3 rounded-2xl text-center sm:text-left flex flex-col justify-center transition-all hover:bg-slate-900/80 hover:border-indigo-500/40">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300 flex items-center justify-center sm:justify-start gap-1">
+                                <Heart className="w-3.5 h-3.5 text-pink-400" />
+                                <span>Wishlist</span>
+                            </span>
+                            <span className="text-xl sm:text-2xl font-black font-heading mt-0.5 text-white">
+                                {savedPlaces.length}
+                            </span>
+                        </div>
+
+                        <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 p-3 rounded-2xl text-center sm:text-left flex flex-col justify-center transition-all hover:bg-slate-900/80 hover:border-indigo-500/40">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300 flex items-center justify-center sm:justify-start gap-1">
+                                <Award className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Badges</span>
+                            </span>
+                            <span className="text-xl sm:text-2xl font-black font-heading mt-0.5 text-white">
+                                {badges.length}
+                            </span>
+                        </div>
+
+                        <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 p-3 rounded-2xl text-center sm:text-left flex flex-col justify-center transition-all hover:bg-slate-900/80 hover:border-indigo-500/40">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300 flex items-center justify-center sm:justify-start gap-1">
+                                <Ticket className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Passes</span>
+                            </span>
+                            <span className="text-xl sm:text-2xl font-black font-heading mt-0.5 text-white">
+                                {activeBookingsCount}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -279,7 +353,7 @@ export function Profile() {
                         </button>
                     </div>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Dynamic Content Sections */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
